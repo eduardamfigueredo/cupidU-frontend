@@ -1,56 +1,52 @@
-# Welcome to your Expo app 👋
+# 💘 cupidU - Front-end Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+O **cupidU** é um aplicativo mobile desenvolvido para aproximar estudantes da Universidade da Amazônia (UNAMA), facilitando conexões e laços sociais com base em interesses em comum e no ambiente acadêmico[cite: 1, 2].
 
-## Get started
+Este repositório contém o código-fonte da aplicação mobile (Front-end)[cite: 6].
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🛠️ Tecnologias Utilizadas
 
-2. Start the app
+- **Framework Mobile:** React Native / Expo[cite: 6]
+- **Autenticação & Validação:** Supabase Auth (Integração com e-mail institucional UNAMA)[cite: 5, 6]
+- **Comunicação em Tempo Real / Chat:** Stream Chat SDK[cite: 5, 6]
+- **Consumo de API:** Integrado via REST API com Back-end em Django REST Framework[cite: 5, 6]
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 📱 Fluxo da Interface e Telas
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+O aplicativo cobre a seguinte jornada do usuário:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+1. **Boas-vindas / Splash Screen**[cite: 3]
+2. **Login / Cadastro:** Validação com e-mail institucional e código de 5 dígitos[cite: 2, 3]
+3. **Perfil Acadêmico:** Configuração das informações do estudante[cite: 3]
+4. **Feed:** Visualização de perfis compatíveis do mesmo campus[cite: 2, 3]
+5. **Flechar / Rejeitar:** Interação com os perfis do feed[cite: 3]
+6. **Match:** Tela de notificação de combinação entre estudantes[cite: 3]
+7. **Chat:** Mensagens diretas em tempo real para estudantes com _match_[cite: 3, 5]
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 🎨 Identidade Visual
+
+- **Paleta de Cores:**
+  - Berry (`#8B1A4A`)[cite: 7]
+  - Passion Red (`#ED1C24` / `#E91E23`)[cite: 7]
+  - Rose (`#E91E63`)[cite: 7]
+  - Deep Bordeaux (`#4A0E1E`)[cite: 7]
+  - Off-White (`#FAF3EB`)[cite: 7]
+- **Tipografia:** Montserrat SemiBold e Circular Std[cite: 7]
+
+---
+
+## 🚀 Como Executar o Projeto Localmente
 
 ```bash
-npm run reset-project
+# 1. Instalar as dependências
+npm install
+
+# 2. Iniciar o servidor de desenvolvimento do Expo
+npx expo start
 ```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
