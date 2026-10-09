@@ -1,4 +1,4 @@
-# 💘 cupidU - Front-end Mobile
+# cupidU - Front-end Mobile
 
 O **cupidU** é um aplicativo mobile desenvolvido para aproximar estudantes da Universidade da Amazônia (UNAMA), facilitando conexões e laços sociais com base em interesses em comum e no ambiente acadêmico[cite: 1, 2].
 
@@ -6,7 +6,7 @@ Este repositório contém o código-fonte da aplicação mobile (Front-end)[cite
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 - **Framework Mobile:** React Native / Expo[cite: 6]
 - **Autenticação & Validação:** Supabase Auth (Integração com e-mail institucional UNAMA)[cite: 5, 6]
@@ -15,7 +15,7 @@ Este repositório contém o código-fonte da aplicação mobile (Front-end)[cite
 
 ---
 
-## 📱 Fluxo da Interface e Telas
+## Fluxo da Interface e Telas
 
 O aplicativo cobre a seguinte jornada do usuário:
 
@@ -29,7 +29,7 @@ O aplicativo cobre a seguinte jornada do usuário:
 
 ---
 
-## 🎨 Identidade Visual
+## Identidade Visual
 
 - **Paleta de Cores:**
   - Berry (`#8B1A4A`)[cite: 7]
@@ -41,7 +41,7 @@ O aplicativo cobre a seguinte jornada do usuário:
 
 ---
 
-## 🚀 Como Executar o Projeto Localmente
+## Como Executar o Projeto Localmente
 
 ```bash
 # 1. Instalar as dependências
