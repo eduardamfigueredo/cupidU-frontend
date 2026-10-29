@@ -6,18 +6,18 @@ import {
   TextInput,
   TouchableOpacity,
   SafeAreaView,
-  StatusBar,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
 export default function VerificacaoScreen() {
   const router = useRouter();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const inputsRef = useRef<Array<TextInput | null>>([]);
+  const inputsRef = useRef<any>([]);
 
   const handleChangeText = (text: string, index: number) => {
     const newOtp = [...otp];
@@ -41,7 +41,7 @@ export default function VerificacaoScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -65,7 +65,9 @@ export default function VerificacaoScreen() {
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => (inputsRef.current[index] = ref)}
+                ref={(el) => {
+                  inputsRef.current[index] = el;
+                }}
                 style={styles.otpCircle}
                 keyboardType="number-pad"
                 maxLength={1}
