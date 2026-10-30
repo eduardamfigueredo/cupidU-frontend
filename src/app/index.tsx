@@ -1,15 +1,9 @@
 import { CupidULogo } from "@/components/CupidULogo";
-import { useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
-  const router = useRouter();
-
-  const handleStart = () => {
-    router.push("/login");
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -21,13 +15,14 @@ export default function WelcomeScreen() {
           acadêmico
         </Text>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleStart}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>Começar</Text>
-        </TouchableOpacity>
+        <Link href="/login" asChild>
+          <TouchableOpacity
+            style={styles.button}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.buttonText}>Começar</Text>
+          </TouchableOpacity>
+        </Link>
       </View>
     </SafeAreaView>
   );
