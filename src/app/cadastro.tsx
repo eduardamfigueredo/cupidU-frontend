@@ -1,43 +1,73 @@
-import React, { useState } from 'react';
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
   StyleSheet,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+  View,
+} from "react-native";
+import { api } from "../services/api";
 
 export default function CadastroScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
 
-  const handleContinuar = () => {
-    router.push('/verificacao');
+  const handleContinuar = async () => {
+    try {
+      if (senha !== confirmarSenha) {
+        alert("As senhas não coincidem");
+        return;
+      }
+
+      const response = await api.post("/auth/signup", {
+        email,
+        password: senha,
+      });
+
+      console.log(response.data);
+
+      router.push({
+        pathname: "/verificacao",
+        params: { email },
+      });
+    } catch (error: any) {
+      console.log(error.response?.data);
+
+      alert(error.response?.data?.detail || "Erro ao cadastrar usuário");
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" background-Color="#FFFFFF" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Feather name="arrow-left" size={24} color="#000000" />
           </TouchableOpacity>
 
           <Text style={styles.title}>Cadastre-se</Text>
-          <Text style={styles.subtitle}>Use o seu e-mail institucional da UNAMA</Text>
+          <Text style={styles.subtitle}>
+            Use o seu e-mail institucional da UNAMA
+          </Text>
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>E-mail institucional</Text>
@@ -76,14 +106,21 @@ export default function CadastroScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.loginLink} onPress={() => router.push('/login')}>
+          <TouchableOpacity
+            style={styles.loginLink}
+            onPress={() => router.push("/login")}
+          >
             <Text style={styles.loginText}>
               Já tem conta? <Text style={styles.underline}>Entrar</Text>
             </Text>
           </TouchableOpacity>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.button} onPress={handleContinuar} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleContinuar}
+              activeOpacity={0.85}
+            >
               <Text style={styles.buttonText}>continuar</Text>
             </TouchableOpacity>
           </View>
@@ -96,7 +133,7 @@ export default function CadastroScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -107,17 +144,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     width: 40,
     height: 40,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: "bold",
+    color: "#000000",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#333333',
+    color: "#333333",
     marginBottom: 35,
     lineHeight: 22,
   },
@@ -126,48 +163,48 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#222222',
-    fontWeight: '500',
+    color: "#222222",
+    fontWeight: "500",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#CCCCCC',
+    borderColor: "#CCCCCC",
     borderRadius: 25,
     height: 50,
     paddingHorizontal: 20,
     fontSize: 14,
-    color: '#333333',
-    backgroundColor: '#FFFFFF',
+    color: "#333333",
+    backgroundColor: "#FFFFFF",
   },
   loginLink: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
     marginBottom: 40,
   },
   loginText: {
     fontSize: 12,
-    color: '#333333',
+    color: "#333333",
   },
   underline: {
-    textDecorationLine: 'underline',
-    fontWeight: '600',
+    textDecorationLine: "underline",
+    fontWeight: "600",
   },
   buttonContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
   },
   button: {
-    backgroundColor: '#4A0E17',
-    width: '70%',
+    backgroundColor: "#4A0E17",
+    width: "70%",
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });

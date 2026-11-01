@@ -1,35 +1,50 @@
-import React, { useState } from 'react';
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
   StyleSheet,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+  View,
+} from "react-native";
+import { api } from "../services/api";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
 
-  const handleLogin = () => {
-    router.push('/verificacao');
+  const handleLogin = async () => {
+    try {
+      const response = await api.post("/auth/login", {
+        email,
+        password: senha,
+      });
+
+      console.log(response.data);
+
+      router.push("/explore");
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.logoContainer}>
             <Text style={styles.logoText}>cupidU</Text>
           </View>
@@ -61,13 +76,17 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleLogin}
+            activeOpacity={0.85}
+          >
             <Text style={styles.buttonText}>Entrar</Text>
           </TouchableOpacity>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Ainda não tem conta? </Text>
-            <TouchableOpacity onPress={() => router.push('/cadastro')}>
+            <TouchableOpacity onPress={() => router.push("/cadastro")}>
               <Text style={styles.linkText}>Cadastre-se</Text>
             </TouchableOpacity>
           </View>
@@ -80,74 +99,74 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 40,
     paddingBottom: 40,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   logoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 30,
   },
   logoText: {
     fontSize: 36,
-    fontWeight: 'bold',
-    color: '#4A0E17',
+    fontWeight: "bold",
+    color: "#4A0E17",
   },
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: "bold",
+    color: "#000000",
     marginBottom: 30,
-    textAlign: 'center',
+    textAlign: "center",
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
     fontSize: 14,
-    color: '#333333',
+    color: "#333333",
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: '#CCCCCC',
+    borderColor: "#CCCCCC",
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: '#000000',
-    backgroundColor: '#FFFFFF',
+    color: "#000000",
+    backgroundColor: "#FFFFFF",
   },
   button: {
-    backgroundColor: '#4A0E17',
+    backgroundColor: "#4A0E17",
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 15,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 25,
   },
   footerText: {
     fontSize: 14,
-    color: '#666666',
+    color: "#666666",
   },
   linkText: {
     fontSize: 14,
-    color: '#4A0E17',
-    fontWeight: 'bold',
+    color: "#4A0E17",
+    fontWeight: "bold",
   },
 });
