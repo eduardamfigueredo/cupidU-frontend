@@ -1,14 +1,16 @@
-import { CupidULogo } from "@/components/CupidULogo";
 import { Link } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+// Importando a imagem diretamente da pasta assets
+const logoImg = require("@/assets/images/logo_cupidU.png");
 
 export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        {/* Usando o vetor em vez da imagem PNG/JPG */}
-        <CupidULogo width={280} height={200} />
+        {/* Renderizando o PNG */}
+        <Image source={logoImg} style={styles.logo} resizeMode="contain" />
 
         <Text style={styles.subtitle}>
           Conectando universitários com interesses em comum no ambiente
@@ -16,10 +18,7 @@ export default function WelcomeScreen() {
         </Text>
 
         <Link href="/login" asChild>
-          <TouchableOpacity
-            style={styles.button}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.button} activeOpacity={0.8}>
             <Text style={styles.buttonText}>Começar</Text>
           </TouchableOpacity>
         </Link>
@@ -38,6 +37,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
+  },
+  logo: {
+    width: 280,
+    height: 200,
   },
   subtitle: {
     color: "#FFFFFF",
