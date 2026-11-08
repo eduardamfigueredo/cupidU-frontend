@@ -1,41 +1,47 @@
-import React, { useState } from 'react';
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CompletarPerfilScreen() {
   const router = useRouter();
-  const [nome, setNome] = useState('');
-  const [idade, setIdade] = useState('');
-  const [curso, setCurso] = useState('');
-  const [campus, setCampus] = useState('');
-  const [orientacao, setOrientacao] = useState('');
-  const [estadoCivil, setEstadoCivil] = useState('');
+  const [nome, setNome] = useState("");
+  const [idade, setIdade] = useState("");
+  const [curso, setCurso] = useState("");
+  const [campus, setCampus] = useState("");
+  const [orientacao, setOrientacao] = useState("");
+  const [estadoCivil, setEstadoCivil] = useState("");
 
   const handleFinalizar = () => {
-    router.push('/');
+    router.push("/");
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Feather name="arrow-left" size={24} color="#000000" />
           </TouchableOpacity>
 
@@ -113,14 +119,22 @@ export default function CompletarPerfilScreen() {
           <Text style={styles.photoLabel}>fotos (min. 3)</Text>
           <View style={styles.photoGrid}>
             {[0, 1, 2, 3, 4].map((index) => (
-              <TouchableOpacity key={index} style={styles.photoSlot} activeOpacity={0.7}>
+              <TouchableOpacity
+                key={index}
+                style={styles.photoSlot}
+                activeOpacity={0.7}
+              >
                 <Feather name="camera" size={22} color="#000000" />
               </TouchableOpacity>
             ))}
           </View>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.button} onPress={handleFinalizar} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleFinalizar}
+              activeOpacity={0.85}
+            >
               <Text style={styles.buttonText}>continuar</Text>
             </TouchableOpacity>
           </View>
@@ -133,7 +147,7 @@ export default function CompletarPerfilScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -144,46 +158,46 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     width: 40,
     height: 40,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: "bold",
+    color: "#000000",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#333333',
+    color: "#333333",
     marginBottom: 25,
     lineHeight: 20,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#CCCCCC',
+    borderColor: "#CCCCCC",
     borderRadius: 25,
     height: 48,
     paddingHorizontal: 20,
     marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   input: {
     flex: 1,
-    height: '100%',
+    height: "100%",
     fontSize: 14,
-    color: '#333333',
+    color: "#333333",
   },
   photoLabel: {
     fontSize: 11,
-    color: '#333333',
+    color: "#333333",
     marginTop: 15,
     marginBottom: 10,
   },
   photoGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 35,
   },
   photoSlot: {
@@ -191,26 +205,26 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CCCCCC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#CCCCCC",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
   buttonContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
   },
   button: {
-    backgroundColor: '#4A0E17',
-    width: '70%',
+    backgroundColor: "#4A0E17",
+    width: "70%",
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });
