@@ -18,7 +18,7 @@ import { api } from "../services/api";
 export default function VerificacaoScreen() {
   const { email } = useLocalSearchParams();
   const router = useRouter();
-  const [otp, setOtp] = useState(["", "", "", "", "", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputsRef = useRef<any>([]);
   const [timer, setTimer] = useState(45);
 
@@ -27,7 +27,7 @@ export default function VerificacaoScreen() {
     newOtp[index] = text;
     setOtp(newOtp);
 
-    if (text && index < 7) {
+    if (text && index < 5) {
       inputsRef.current[index + 1]?.focus();
     }
   };
@@ -52,8 +52,8 @@ export default function VerificacaoScreen() {
     try {
       const codigo = otp.join("");
 
-      if (codigo.length !== 8) {
-        alert("Preencha os 8 dígitos do código");
+      if (codigo.length !== 6) {
+        alert("Preencha os 6 dígitos do código");
         return;
       }
 
