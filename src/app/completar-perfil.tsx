@@ -44,6 +44,7 @@ export default function CompletarPerfilScreen() {
     });
 
     if (!resultado.canceled) {
+      console.log(resultado.assets[0]);
       const novasFotos = [...fotos];
       novasFotos[index] = resultado.assets[0].uri;
 
@@ -52,31 +53,32 @@ export default function CompletarPerfilScreen() {
   };
 
   const uploadFoto = async (uri: string) => {
-    const uploadFoto = async (uri: string) => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      console.log("SESSION NO UPLOAD:", session);
-    };
+    console.log("URI:", uri);
     const response = await fetch(uri);
-    const blob = await response.blob();
+    console.log("STATUS:", response.status);
+    console.log("CONTENT-TYPE:", response.headers.get("content-type"));
+
+    const arrayBuffer = await response.arrayBuffer();
+    console.log("TAMANHO:", arrayBuffer.byteLength);
 
     const nomeArquivo = `${Date.now()}.jpg`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("perfil-fotos")
-      .upload(nomeArquivo, blob);
+      .upload(nomeArquivo, arrayBuffer, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
 
     if (error) {
       throw error;
     }
 
-    const { data: urlData } = supabase.storage
+    const { data } = supabase.storage
       .from("perfil-fotos")
       .getPublicUrl(nomeArquivo);
 
-    return urlData.publicUrl;
+    return data.publicUrl;
   };
 
   const handleFinalizar = async () => {
