@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +15,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../app/lib/supabase";
+import { criarPerfil } from "../services/userService";
 
 export default function CompletarPerfilScreen() {
   const router = useRouter();
@@ -22,14 +26,121 @@ export default function CompletarPerfilScreen() {
   const [campus, setCampus] = useState("");
   const [orientacao, setOrientacao] = useState("");
   const [estadoCivil, setEstadoCivil] = useState("");
+  const [bio, setBio] = useState("");
+  const [fotos, setFotos] = useState<string[]>([]);
 
-  const handleFinalizar = () => {
-    router.push("/");
+  const selecionarFoto = async (index: number) => {
+    const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissao.granted) {
+      alert("Permissão negada");
+      return;
+    }
+
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!resultado.canceled) {
+      const novasFotos = [...fotos];
+      novasFotos[index] = resultado.assets[0].uri;
+
+      setFotos(novasFotos);
+    }
+  };
+
+  const uploadFoto = async (uri: string) => {
+    const uploadFoto = async (uri: string) => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      console.log("SESSION NO UPLOAD:", session);
+    };
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const nomeArquivo = `${Date.now()}.jpg`;
+
+    const { data, error } = await supabase.storage
+      .from("perfil-fotos")
+      .upload(nomeArquivo, blob);
+
+    if (error) {
+      throw error;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("perfil-fotos")
+      .getPublicUrl(nomeArquivo);
+
+    return urlData.publicUrl;
+  };
+
+  const handleFinalizar = async () => {
+    try {
+      if (!nome.trim()) {
+        alert("Informe seu nome.");
+        return;
+      }
+
+      if (!idade) {
+        alert("Informe sua idade.");
+        return;
+      }
+
+      if (fotos.length === 0) {
+        alert("Selecione pelo menos uma foto.");
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      console.log("SESSION:", session);
+      console.log("USER:", session?.user);
+
+      const urlsFotos = await Promise.all(
+        fotos.map((foto) => uploadFoto(foto)),
+      );
+
+      console.log("URLs geradas:", urlsFotos);
+
+      const perfil = {
+        nome,
+        idade: Number(idade),
+        curso,
+        campus,
+        orientacao,
+        estado_civil: estadoCivil,
+        bio,
+        fotos: urlsFotos,
+      };
+
+      console.log("Perfil que será enviado:", perfil);
+
+      const resposta = await criarPerfil(perfil);
+
+      console.log("Perfil criado:", resposta);
+
+      alert("Perfil criado com sucesso!");
+
+      router.replace("/");
+    } catch (error: any) {
+      console.log("ERRO COMPLETO:", error);
+      console.log("STATUS:", error?.response?.status);
+      console.log("DATA:", error?.response?.data);
+
+      alert(JSON.stringify(error?.response?.data));
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" background-Color="#FFFFFF" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -116,6 +227,15 @@ export default function CompletarPerfilScreen() {
             <Feather name="arrow-right" size={20} color="#000000" />
           </View>
 
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Bio"
+              value={bio}
+              onChangeText={setBio}
+            />
+          </View>
+
           <Text style={styles.photoLabel}>fotos (min. 3)</Text>
           <View style={styles.photoGrid}>
             {[0, 1, 2, 3, 4].map((index) => (
@@ -123,8 +243,20 @@ export default function CompletarPerfilScreen() {
                 key={index}
                 style={styles.photoSlot}
                 activeOpacity={0.7}
+                onPress={() => selecionarFoto(index)}
               >
-                <Feather name="camera" size={22} color="#000000" />
+                {fotos[index] ? (
+                  <Image
+                    source={{ uri: fotos[index] }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: 12,
+                    }}
+                  />
+                ) : (
+                  <Feather name="camera" size={22} color="#000000" />
+                )}
               </TouchableOpacity>
             ))}
           </View>

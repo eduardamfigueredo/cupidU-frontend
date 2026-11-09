@@ -1,4 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MOCK_PROFILES, Profile } from "../data/mockProfiles";
+import { api } from "./api";
 
 // HOJE: Puxa do Mock no próprio Front
 // DEPOIS: A pessoa do back troca isso por: await api.get('/feed')
@@ -22,3 +24,16 @@ export const registerInteraction = async (
   );
   return true;
 };
+
+export async function criarPerfil(dados: any) {
+  const token = await AsyncStorage.getItem("access_token");
+  console.log("TOKEN RECUPERADO:", token);
+
+  const response = await api.post("perfis/", dados, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return response.data;
+}

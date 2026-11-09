@@ -1,10 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../services/api";
 
 export default function LoginScreen() {
@@ -21,16 +22,23 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      const response = await api.post("/auth/login", {
+      const response = await api.post("auth/login", {
         email,
         password: senha,
       });
 
+      await AsyncStorage.setItem("access_token", response.data.access_token);
+      console.log("TOKEN RECEBIDO:", response.data.access_token);
+
+      await AsyncStorage.setItem("refresh_token", response.data.refresh_token);
+
       console.log(response.data);
 
-      router.push("/explore");
-    } catch (error) {
-      console.error(error);
+      router.push("/completar-perfil");
+    } catch (error: any) {
+      console.log("STATUS:", error?.response?.status);
+      console.log("DATA:", error?.response?.data);
+      console.log("URL:", error?.config?.baseURL + error?.config?.url);
     }
   };
 
