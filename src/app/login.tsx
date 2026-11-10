@@ -95,7 +95,7 @@ export default function LoginScreen() {
           <View style={styles.footer}>
             <Text style={styles.footerText}>Ainda não tem conta? </Text>
             <TouchableOpacity onPress={() => router.push("/cadastro")}>
-              <Text style={styles.linkText}>Cadastre-se</Text>
+              <Text style={styles.linkText}> Cadastre-se</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
