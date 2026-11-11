@@ -1,52 +1,58 @@
-# cupidU - Front-end Mobile
+# CupidU - Front-end Mobile
 
-O **cupidU** é um aplicativo mobile desenvolvido para aproximar estudantes da Universidade da Amazônia (UNAMA), facilitando conexões e laços sociais com base em interesses em comum e no ambiente acadêmico[cite: 1, 2].
+O **CupidU** é um aplicativo mobile desenvolvido para aproximar estudantes da Universidade da Amazônia (UNAMA), facilitando conexões e laços sociais com base em interesses em comum e no ambiente acadêmico.
 
-Este repositório contém o código-fonte da aplicação mobile (Front-end)[cite: 6].
+Este repositório contém o código-fonte da aplicação mobile (Front-end).
 
----
 
 ## Tecnologias Utilizadas
 
-- **Framework Mobile:** React Native / Expo[cite: 6]
-- **Autenticação & Validação:** Supabase Auth (Integração com e-mail institucional UNAMA)[cite: 5, 6]
-- **Comunicação em Tempo Real / Chat:** Stream Chat SDK[cite: 5, 6]
-- **Consumo de API:** Integrado via REST API com Back-end em Django REST Framework[cite: 5, 6]
-
----
-
-## Fluxo da Interface e Telas
-
-O aplicativo cobre a seguinte jornada do usuário:
-
-1. **Boas-vindas / Splash Screen**[cite: 3]
-2. **Login / Cadastro:** Validação com e-mail institucional e código de 5 dígitos[cite: 2, 3]
-3. **Perfil Acadêmico:** Configuração das informações do estudante[cite: 3]
-4. **Feed:** Visualização de perfis compatíveis do mesmo campus[cite: 2, 3]
-5. **Flechar / Rejeitar:** Interação com os perfis do feed[cite: 3]
-6. **Match:** Tela de notificação de combinação entre estudantes[cite: 3]
-7. **Chat:** Mensagens diretas em tempo real para estudantes com _match_[cite: 3, 5]
-
----
+- **Framework Mobile:** React Native com Expo (Expo Router)
+- **Linguagem:** TypeScript
+- **Estilização:** StyleSheet nativo (Design Minimalista / Dark Mode)
+- **Ícones:** `@expo/vector-icons` (Feather)
+- **Autenticação & Validação:** Supabase Auth (Integração com e-mail institucional UNAMA)
+- **Comunicação em Tempo Real / Chat:** Stream Chat SDK
+- **Consumo de API:** Integrado via REST API com Back-end em Django REST Framework
 
 ## Identidade Visual
 
 - **Paleta de Cores:**
-  - Berry (`#8B1A4A`)[cite: 7]
-  - Passion Red (`#ED1C24` / `#E91E23`)[cite: 7]
-  - Rose (`#E91E63`)[cite: 7]
-  - Deep Bordeaux (`#4A0E1E`)[cite: 7]
-  - Off-White (`#FAF3EB`)[cite: 7]
-- **Tipografia:** Montserrat SemiBold e Circular Std[cite: 7]
+  - Berry (`#8B1A4A`)
+  - Passion Red (`#ED1C24` / `#E91E23`)
+  - Rose (`#E91E63`)
+  - Deep Bordeaux (`#4A0E1E`)
+  - Off-White (`#FAF3EB`)
+- **Tipografia:** Montserrat SemiBold e Circular Std
 
----
+
+## Estrutura de Telas e Rotas (`src/app`)
+
+- [x] **Splash / Entrada (`index.tsx`):** Redirecionamento e tela inicial.
+- [x] **Feed (`feed.tsx`):** Visualização dos cards de perfis com botões de interações.
+- [x] **Perfil (`perfil.tsx`):** Visualização dos dados do estudante, tags e opções da conta.
+- [x] **Login (`login.tsx`):** Autenticação de utilizadores.
+- [x] **Cadastro (`cadastro.tsx`):** Registo inicial de estudantes.
+- [x] **Verificação (`verificacao.tsx`):** Validação com código de confirmação.
+- [x] **Completar Perfil (`completar-perfil.tsx`):** Configuração de dados acadêmicos e preferências.
 
 ## Como Executar o Projeto Localmente
 
-```bash
-# 1. Instalar as dependências
-npm install
+1. **Instalar as dependências:**
+   ```bash
+   npm install
+   
+2. **Iniciar o servidor de desenvolvimento do Expo (com limpeza de cache):**
+   npx expo start -c
+   
+4. **Abra o aplicativo Expo Go no seu telemóvel físico e escaneie o QR Code exibido no terminal.**
+   
+### Como salvar no GitHub:
 
-# 2. Iniciar o servidor de desenvolvimento do Expo
-npx expo start
-```
+1. Cola o código acima no teu ficheiro `README.md` no VS Code e salva (`Ctrl + S`).
+2. No terminal, executa:
+
+```bash
+git add README.md
+git commit -m "docs: limpa marcadores e atualiza README"
+git push origin main
