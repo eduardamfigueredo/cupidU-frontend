@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../app/lib/supabase";
+import { supabase } from "../lib/supabase";
 import { criarPerfil } from "../services/userService";
 
 export default function CompletarPerfilScreen() {
