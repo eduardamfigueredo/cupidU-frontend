@@ -22,6 +22,7 @@ export default function VerificacaoScreen() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputsRef = useRef<any>([]);
   const [timer, setTimer] = useState(45);
+  const [reenviando, setReenviando] = useState(false);
 
   const handleChangeText = (text: string, index: number) => {
     const newOtp = [...otp];
@@ -85,6 +86,28 @@ export default function VerificacaoScreen() {
       alert(error.response?.data?.detail || error.message || "Código inválido");
     }
   };
+  const handleReenviar = async () => {
+    if (timer > 0 || reenviando) return;
+
+    try {
+      setReenviando(true);
+
+      await api.post("/auth/resend-otp", { email });
+
+      setOtp(["", "", "", "", "", ""]);
+      inputsRef.current[0]?.focus();
+      setTimer(45);
+
+      alert("Enviamos um novo código para o seu e-mail.");
+    } catch (error: any) {
+      console.log("ERRO REENVIO:", error.response?.data ?? error);
+      alert(
+        error.response?.data?.detail || "Não foi possível reenviar o código.",
+      );
+    } finally {
+      setReenviando(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -132,9 +155,22 @@ export default function VerificacaoScreen() {
             ))}
           </View>
 
-          <Text style={styles.timerText}>
-            Reenviar código em 00:{timer.toString().padStart(2, "0")}
-          </Text>
+          {timer > 0 ? (
+            <Text style={styles.timerText}>
+              Reenviar código em 00:{timer.toString().padStart(2, "0")}
+            </Text>
+          ) : (
+            <TouchableOpacity
+              onPress={handleReenviar}
+              disabled={reenviando}
+              activeOpacity={0.7}
+              style={styles.resendButton}
+            >
+              <Text style={styles.resendText}>
+                {reenviando ? "Reenviando..." : "Reenviar código"}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
@@ -226,5 +262,17 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "500",
+  },
+  resendButton: {
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  resendText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4A0E17",
+    textDecorationLine: "underline",
   },
 });
