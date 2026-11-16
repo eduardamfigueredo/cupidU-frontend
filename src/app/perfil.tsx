@@ -82,7 +82,7 @@ export default function ProfileScreen() {
   );
 
   const handleEditProfile = () => {
-    router.push("/completar-perfil");
+    router.push({ pathname: "/completar-perfil", params: { modo: "editar" } });
   };
 
   const handleLogout = async () => {

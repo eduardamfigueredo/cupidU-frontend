@@ -2,9 +2,10 @@ import { Feather } from "@expo/vector-icons";
 import { decode } from "base64-arraybuffer";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +19,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
+import { api } from "../services/api";
 import { criarPerfil } from "../services/userService";
 
 export default function CompletarPerfilScreen() {
@@ -30,6 +32,42 @@ export default function CompletarPerfilScreen() {
   const [estadoCivil, setEstadoCivil] = useState("");
   const [bio, setBio] = useState("");
   const [fotos, setFotos] = useState<string[]>(["", "", "", "", ""]);
+  const [salvando, setSalvando] = useState(false);
+  const { modo } = useLocalSearchParams<{ modo?: string }>();
+  const editando = modo === "editar";
+  const [carregando, setCarregando] = useState(editando);
+
+  useEffect(() => {
+    if (!editando) return;
+
+    async function carregarPerfil() {
+      try {
+        const { data } = await api.get("perfis/me/");
+        setNome(data.nome ?? "");
+        setIdade(String(data.idade ?? ""));
+        setCurso(data.curso ?? "");
+        setCampus(data.campus ?? "");
+        setOrientacao(data.orientacao ?? "");
+        setEstadoCivil(data.estado_civil ?? "");
+        setBio(data.bio ?? "");
+
+        // Preenche os 5 slots; os vazios ficam como ""
+        const slots = ["", "", "", "", ""];
+        (data.fotos ?? []).slice(0, 5).forEach((url: string, i: number) => {
+          slots[i] = url;
+        });
+        setFotos(slots);
+      } catch (error: any) {
+        console.log("ERRO AO CARREGAR PERFIL:", error?.response?.data ?? error);
+        alert("Não foi possível carregar seu perfil.");
+        router.back();
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregarPerfil();
+  }, [editando]);
 
   const selecionarFoto = async (index: number) => {
     const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -76,6 +114,7 @@ export default function CompletarPerfilScreen() {
   };
 
   const handleFinalizar = async () => {
+    if (salvando) return;
     try {
       if (!nome.trim()) {
         alert("Informe seu nome.");
@@ -94,48 +133,67 @@ export default function CompletarPerfilScreen() {
         return;
       }
 
+      setSalvando(true);
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      console.log("SESSION:", session);
-      console.log("USER:", session?.user);
+      if (!session) {
+        alert("Sua sessão expirou. Faça login novamente.");
+        router.replace("/login");
+        return;
+      }
 
-      // ...depois da checagem de sessão:
+      // Fotos que já são URL (https) são mantidas; só as novas (file://) sobem
       const urlsFotos = await Promise.all(
-        fotosSelecionadas.map((foto, i) => uploadFoto(foto, i)),
+        fotosSelecionadas.map((foto, i) =>
+          foto.startsWith("http") ? foto : uploadFoto(foto, i),
+        ),
       );
 
-      console.log("URLs geradas:", urlsFotos);
-
       const perfil = {
-        nome,
+        nome: nome.trim(),
         idade: Number(idade),
-        curso,
-        campus,
-        orientacao,
-        estado_civil: estadoCivil,
-        bio,
+        curso: curso.trim(),
+        campus: campus.trim(),
+        orientacao: orientacao.trim(),
+        estado_civil: estadoCivil.trim(),
+        bio: bio.trim(),
         fotos: urlsFotos,
       };
 
-      console.log("Perfil que será enviado:", perfil);
-
-      const resposta = await criarPerfil(perfil);
-
-      console.log("Perfil criado:", resposta);
-
-      alert("Perfil criado com sucesso!");
-
-      router.replace("/");
+      if (editando) {
+        await api.patch("perfis/me/", perfil);
+        alert("Perfil atualizado!");
+        router.replace("/perfil");
+      } else {
+        await criarPerfil(perfil);
+        alert("Perfil criado com sucesso!");
+        router.replace("/perfil");
+      }
     } catch (error: any) {
       console.log("ERRO COMPLETO:", error);
       console.log("STATUS:", error?.response?.status);
       console.log("DATA:", error?.response?.data);
 
-      alert(JSON.stringify(error?.response?.data));
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        router.replace("/login");
+        return;
+      }
+
+      alert(JSON.stringify(error?.response?.data ?? error?.message));
+    } finally {
+      setSalvando(false);
     }
   };
+
+  if (carregando) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#4A0E17" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -155,9 +213,13 @@ export default function CompletarPerfilScreen() {
             <Feather name="arrow-left" size={24} color="#000000" />
           </TouchableOpacity>
 
-          <Text style={styles.title}>Complete seu perfil</Text>
+          <Text style={styles.title}>
+            {editando ? "Editar perfil" : "Complete seu perfil"}
+          </Text>
           <Text style={styles.subtitle}>
-            Preencha as informações para continuar usando o app
+            {editando
+              ? "Atualize as informações do seu perfil"
+              : "Preencha as informações para continuar usando o app"}
           </Text>
 
           <View style={styles.inputContainer}>
@@ -230,6 +292,7 @@ export default function CompletarPerfilScreen() {
             <TextInput
               style={styles.input}
               placeholder="Bio"
+              placeholderTextColor="#A0A0A0"
               value={bio}
               onChangeText={setBio}
             />
@@ -262,11 +325,18 @@ export default function CompletarPerfilScreen() {
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.button}
+              style={[styles.button, salvando && { opacity: 0.6 }]}
               onPress={handleFinalizar}
+              disabled={salvando}
               activeOpacity={0.85}
             >
-              <Text style={styles.buttonText}>continuar</Text>
+              {salvando ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  {editando ? "salvar" : "continuar"}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
