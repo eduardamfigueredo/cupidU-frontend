@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
@@ -13,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../lib/supabase";
 import { api } from "../services/api";
 
 export default function LoginScreen() {
@@ -27,18 +27,38 @@ export default function LoginScreen() {
         password: senha,
       });
 
-      await AsyncStorage.setItem("access_token", response.data.access_token);
-      console.log("TOKEN RECEBIDO:", response.data.access_token);
+      const { access_token, refresh_token } = response.data;
 
-      await AsyncStorage.setItem("refresh_token", response.data.refresh_token);
+      if (!access_token || !refresh_token) {
+        throw new Error("Resposta do servidor sem tokens");
+      }
 
-      console.log(response.data);
+      const { error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
 
-      router.push("/completar-perfil");
+      if (error) throw error;
+
+      // Verifica se o usuário já tem perfil criado
+      try {
+        await api.get("perfis/me/");
+        router.replace("/perfil");
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          router.replace("/completar-perfil");
+        } else {
+          throw err;
+        }
+      }
     } catch (error: any) {
       console.log("STATUS:", error?.response?.status);
       console.log("DATA:", error?.response?.data);
       console.log("URL:", error?.config?.baseURL + error?.config?.url);
+
+      alert(
+        error?.response?.data?.detail || error?.message || "Falha no login",
+      );
     }
   };
 

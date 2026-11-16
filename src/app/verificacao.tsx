@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../lib/supabase";
 import { api } from "../services/api";
 
 export default function VerificacaoScreen() {
@@ -62,13 +63,26 @@ export default function VerificacaoScreen() {
         token: codigo,
       });
 
-      console.log(response.data);
+      const { access_token, refresh_token } = response.data;
+
+      if (!access_token || !refresh_token) {
+        throw new Error("Resposta do servidor sem tokens");
+      }
+
+      const { data, error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      console.log("SET SESSION:", data.session ? "OK" : "SEM SESSÃO", error);
+
+      if (error) throw error;
 
       router.push("/completar-perfil");
     } catch (error: any) {
-      console.log(error.response?.data);
+      console.log("ERRO VERIFICAÇÃO:", error.response?.data ?? error);
 
-      alert(error.response?.data?.detail || "Código inválido");
+      alert(error.response?.data?.detail || error.message || "Código inválido");
     }
   };
 

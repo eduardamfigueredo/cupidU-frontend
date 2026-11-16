@@ -1,4 +1,6 @@
 import { Feather } from "@expo/vector-icons";
+import { decode } from "base64-arraybuffer";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -27,7 +29,7 @@ export default function CompletarPerfilScreen() {
   const [orientacao, setOrientacao] = useState("");
   const [estadoCivil, setEstadoCivil] = useState("");
   const [bio, setBio] = useState("");
-  const [fotos, setFotos] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<string[]>(["", "", "", "", ""]);
 
   const selecionarFoto = async (index: number) => {
     const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -38,41 +40,33 @@ export default function CompletarPerfilScreen() {
     }
 
     const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"], // MediaTypeOptions está deprecated
       allowsEditing: true,
       quality: 0.8,
     });
 
     if (!resultado.canceled) {
-      console.log(resultado.assets[0]);
       const novasFotos = [...fotos];
       novasFotos[index] = resultado.assets[0].uri;
-
       setFotos(novasFotos);
     }
   };
 
-  const uploadFoto = async (uri: string) => {
-    console.log("URI:", uri);
-    const response = await fetch(uri);
-    console.log("STATUS:", response.status);
-    console.log("CONTENT-TYPE:", response.headers.get("content-type"));
+  const uploadFoto = async (uri: string, index: number) => {
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: "base64",
+    });
 
-    const arrayBuffer = await response.arrayBuffer();
-    console.log("TAMANHO:", arrayBuffer.byteLength);
-
-    const nomeArquivo = `${Date.now()}.jpg`;
+    const nomeArquivo = `${Date.now()}-${index}.jpg`;
 
     const { error } = await supabase.storage
       .from("perfil-fotos")
-      .upload(nomeArquivo, arrayBuffer, {
+      .upload(nomeArquivo, decode(base64), {
         contentType: "image/jpeg",
         upsert: false,
       });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     const { data } = supabase.storage
       .from("perfil-fotos")
@@ -93,8 +87,10 @@ export default function CompletarPerfilScreen() {
         return;
       }
 
-      if (fotos.length === 0) {
-        alert("Selecione pelo menos uma foto.");
+      const fotosSelecionadas = fotos.filter(Boolean);
+
+      if (fotosSelecionadas.length < 3) {
+        alert("Selecione pelo menos 3 fotos.");
         return;
       }
 
@@ -105,8 +101,9 @@ export default function CompletarPerfilScreen() {
       console.log("SESSION:", session);
       console.log("USER:", session?.user);
 
+      // ...depois da checagem de sessão:
       const urlsFotos = await Promise.all(
-        fotos.map((foto) => uploadFoto(foto)),
+        fotosSelecionadas.map((foto, i) => uploadFoto(foto, i)),
       );
 
       console.log("URLs geradas:", urlsFotos);
