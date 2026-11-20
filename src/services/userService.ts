@@ -22,36 +22,39 @@ export async function criarPerfil(dados: any) {
 }
 
 export async function fetchFeedProfiles(): Promise<Profile[]> {
-  return [
-    {
-      id: "1",
-      name: "Lucas Silva",
-      age: 21,
-      course: "Ciência da Computação",
-      campus: "Campus Alcindo Cacela",
-      status: "Procurando companhia para estudar",
-      image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800",
-      location: "",
-      bio: ""
-    },
-    {
-      id: "2",
-      name: "Mariana Costa",
-      age: 20,
-      course: "Direito",
-      campus: "Campus BR",
-      status: "Café entre as aulas",
-      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800",
-      location: "",
-      bio: ""
-    },
-  ];
+  const response = await api.get("feed/");
+
+  return response.data.map((perfil: any) => ({
+    id: String(perfil.id),
+
+    name: perfil.nome,
+    age: perfil.idade,
+
+    course: perfil.curso,
+    campus: perfil.campus,
+
+    status: perfil.bio || perfil.estado_civil,
+
+    image:
+      perfil.fotos?.length > 0
+        ? perfil.fotos[0]
+        : "https://via.placeholder.com/500",
+
+    location: perfil.campus,
+
+    bio: perfil.bio || "",
+  }));
 }
 
 export async function registerInteraction(
-  targetUserId: string,
-  action: "LIKE" | "DISLIKE"
+  targetProfileId: string,
+  action: "LIKE" | "DISLIKE",
 ) {
-  console.log(`Interação registrada: ${action} -> ${targetUserId}`);
-  return { matched: action === "LIKE" };
+  const endpoint = action === "LIKE" ? "curtir/" : "rejeitar/";
+
+  const response = await api.post(endpoint, {
+    alvo_id: Number(targetProfileId),
+  });
+
+  return response.data;
 }

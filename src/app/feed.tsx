@@ -1,4 +1,5 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
@@ -22,25 +23,59 @@ export default function FeedScreen() {
   // Guarda a lista de perfis
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
-  // Índice do perfil visível na pilha
+  // Índice do perfil atual
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Carrega os dados na montagem da tela
+  // Estado de carregamento
+  const [loading, setLoading] = useState(true);
+
+  const router = useRouter();
+
   useEffect(() => {
-    fetchFeedProfiles().then((data: Profile[]) => setProfiles(data));
+    const loadFeed = async () => {
+      try {
+        const data = await fetchFeedProfiles();
+
+        setProfiles(data);
+        setCurrentIndex(0);
+      } catch (error: any) {
+        console.log("Erro ao carregar feed:", error?.response?.data);
+
+        if (
+          error?.response?.data?.detail ===
+          "Complete seu perfil para ver o feed."
+        ) {
+          router.replace("/completar-perfil");
+        }
+      }
+    };
+
+    loadFeed();
   }, []);
 
   // Processa o clique de Like/Dislike
-  const handleSwipe = (direction: "right" | "left") => {
+  const handleSwipe = async (direction: "right" | "left") => {
     const current = profiles[currentIndex];
 
-    if (current) {
-      const action = direction === "right" ? "LIKE" : "DISLIKE";
-      registerInteraction(current.id, action);
-    }
+    if (!current) return;
 
-    // Avança para o próximo perfil
-    setCurrentIndex((prev) => prev + 1);
+    try {
+      const action = direction === "right" ? "LIKE" : "DISLIKE";
+
+      const result = await registerInteraction(current.id, action);
+
+      if (result?.match) {
+        alert("🎉 Vocês deram match!");
+      }
+
+      // Avança para o próximo perfil
+      setCurrentIndex((prev) => prev + 1);
+    } catch (error: any) {
+      console.error(
+        "Erro ao registrar interação:",
+        error?.response?.data || error,
+      );
+    }
   };
 
   // Obtém o perfil atual
