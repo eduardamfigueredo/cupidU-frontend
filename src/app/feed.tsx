@@ -1,9 +1,12 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Dimensions,
   Image,
+  PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,33 +18,94 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Profile } from "@/data/mockProfiles";
 import { fetchFeedProfiles, registerInteraction } from "@/services/userService";
 
-// Largura da tela do dispositivo
+// Largura da tela do dispositivo e distância mínima para confirmar o arraste
 const { width } = Dimensions.get("window");
+const SWIPE_THRESHOLD = width * 0.25;
 
 export default function FeedScreen() {
+  const router = useRouter();
+
   // Guarda a lista de perfis
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
   // Índice do perfil visível na pilha
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Posição animada do cartão ao arrastar
+  const position = useRef(new Animated.ValueXY()).current;
+
   // Carrega os dados na montagem da tela
   useEffect(() => {
     fetchFeedProfiles().then((data: Profile[]) => setProfiles(data));
   }, []);
 
-  // Processa o clique de Like/Dislike
-  const handleSwipe = (direction: "right" | "left") => {
+  // Processa o arraste ou clique de Like/Dislike
+  const handleSwipe = async (direction: "right" | "left") => {
     const current = profiles[currentIndex];
+
+    // Reseta a posição do cartão e avança para o próximo perfil
+    position.setValue({ x: 0, y: 0 });
+    setCurrentIndex((prev) => prev + 1);
 
     if (current) {
       const action = direction === "right" ? "LIKE" : "DISLIKE";
-      registerInteraction(current.id, action);
-    }
+      const result = await registerInteraction(current.id, action);
 
-    // Avança para o próximo perfil
-    setCurrentIndex((prev) => prev + 1);
+      // Se deu a flechada (arrastou para o lado direito), navega para a tela /flechada
+      if (direction === "right" && result?.matched) {
+        router.push({
+          pathname: "/flechada",
+          params: {
+            matchedImage: current.image,
+            matchedName: current.name,
+            matchedId: current.id,
+          },
+        });
+      }
+    }
   };
+
+  // Mantém a referência atualizada da função para o gesto de arrastar
+  const handleSwipeRef = useRef(handleSwipe);
+  handleSwipeRef.current = handleSwipe;
+
+  // Configura o gesto de arrastar o cartão para os lados
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dx) > 10,
+      onPanResponderMove: (_, gestureState) => {
+        position.setValue({ x: gestureState.dx, y: gestureState.dy * 0.2 });
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > SWIPE_THRESHOLD) {
+          Animated.timing(position, {
+            toValue: { x: width + 100, y: gestureState.dy },
+            duration: 200,
+            useNativeDriver: false,
+          }).start(() => handleSwipeRef.current("right"));
+        } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+          Animated.timing(position, {
+            toValue: { x: -width - 100, y: gestureState.dy },
+            duration: 200,
+            useNativeDriver: false,
+          }).start(() => handleSwipeRef.current("left"));
+        } else {
+          Animated.spring(position, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  // Inclinação suave enquanto arrasta o cartão
+  const cardRotate = position.x.interpolate({
+    inputRange: [-width / 2, 0, width / 2],
+    outputRange: ["-8deg", "0deg", "8deg"],
+    extrapolate: "clamp",
+  });
 
   // Obtém o perfil atual
   const current = profiles[currentIndex];
@@ -62,10 +126,22 @@ export default function FeedScreen() {
       {/* Exibe o cartão se houver perfis disponíveis */}
       {current ? (
         <View style={styles.content}>
-          {/* Cartão principal do feed */}
-          <View style={styles.card}>
+          {/* Cartão principal do feed com gesto de arrastar */}
+          <Animated.View
+            {...panResponder.panHandlers}
+            style={[
+              styles.card,
+              {
+                transform: [
+                  { translateX: position.x },
+                  { translateY: position.y },
+                  { rotate: cardRotate },
+                ],
+              },
+            ]}
+          >
             {/* Foto principal centralizada */}
-            <View style={styles.imageWrapper}>
+            <View style={styles.imageWrapper} pointerEvents="none">
               <Image source={{ uri: current.image }} style={styles.cardImg} />
             </View>
 
@@ -112,7 +188,7 @@ export default function FeedScreen() {
                 <Ionicons name="heart" size={36} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </View>
       ) : (
         // Estado Vazio
