@@ -43,10 +43,12 @@ export default function LoginScreen() {
       // Verifica se o usuário já tem perfil criado
       try {
         await api.get("perfis/me/");
-        router.replace("/perfil");
+        router.replace("/feed");
+        return;
       } catch (err: any) {
         if (err.response?.status === 404) {
           router.replace("/completar-perfil");
+          return;
         } else {
           throw err;
         }
