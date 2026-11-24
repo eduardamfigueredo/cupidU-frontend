@@ -2,88 +2,63 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import {
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { supabase } from "@/lib/supabase";
+import { api } from "../services/api";
 
-// Fallback caso o usuário ainda não tenha foto salva no cadastro
-const FOTO_PADRAO_USUARIO =
+// Usado só se o parceiro não tiver foto
+const FOTO_PADRAO_PARCEIRO =
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800";
+
+const primeiro = (valor?: string | string[]) =>
+  Array.isArray(valor) ? valor[0] : valor;
 
 export default function FlechadaScreen() {
   const roteador = useRouter();
 
-  // Recebe os dados do perfil com quem deu flechada enviados pelo feed
+  // Dados do match enviados pelo feed
   const parametros = useLocalSearchParams<{
     fotoParceiro?: string;
     nomeParceiro?: string;
-    idParceiro?: string;
+    canalId?: string;
   }>();
 
-  const fotoParceiro = Array.isArray(parametros.fotoParceiro)
-    ? parametros.fotoParceiro[0]
-    : parametros.fotoParceiro;
+  const fotoParceiro = primeiro(parametros.fotoParceiro);
+  const nomeParceiro = primeiro(parametros.nomeParceiro);
+  const canalId = primeiro(parametros.canalId);
 
-  const nomeParceiro = Array.isArray(parametros.nomeParceiro)
-    ? parametros.nomeParceiro[0]
-    : parametros.nomeParceiro;
+  // Foto do usuário logado (null enquanto carrega)
+  const [fotoUsuarioLogado, definirFotoUsuarioLogado] = useState<string | null>(
+    null,
+  );
 
-  const idParceiro = Array.isArray(parametros.idParceiro)
-    ? parametros.idParceiro[0]
-    : parametros.idParceiro;
-
-  // Estado que guarda a foto de perfil do usuário logado
-  const [fotoUsuarioLogado, definirFotoUsuarioLogado] =
-    useState<string>(FOTO_PADRAO_USUARIO);
-
-  // Busca a foto de perfil real do usuário logado no Supabase
+  // Busca a foto real no seu perfil, no backend Django
   useEffect(() => {
+    let ativo = true;
+
     const carregarFotoUsuario = async () => {
       try {
-        const {
-          data: { user: usuario },
-        } = await supabase.auth.getUser();
+        const resposta = await api.get("perfis/me/");
+        const foto = resposta.data?.fotos?.[0];
 
-        if (!usuario) return;
-
-        const fotoMetadados =
-          usuario.user_metadata?.avatar_url ||
-          usuario.user_metadata?.foto_url ||
-          usuario.user_metadata?.image;
-
-        if (fotoMetadados) {
-          definirFotoUsuarioLogado(fotoMetadados);
-          return;
+        if (ativo && foto) {
+          definirFotoUsuarioLogado(foto);
         }
-
-        const { data: dadosPerfil } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", usuario.id)
-          .maybeSingle();
-
-        const fotoBanco =
-          dadosPerfil?.avatar_url ||
-          dadosPerfil?.foto_url ||
-          dadosPerfil?.image ||
-          dadosPerfil?.photo_url;
-
-        if (fotoBanco) {
-          definirFotoUsuarioLogado(fotoBanco);
-        }
-      } catch {
-        // Mantém o fallback caso esteja testando sem sessão ativa
+      } catch (erro: any) {
+        console.log(
+          "ERRO FOTO PERFIL:",
+          erro?.response?.status,
+          erro?.response?.data,
+        );
       }
     };
 
     carregarFotoUsuario();
+
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   // Volta para o feed para continuar vendo perfis
@@ -91,12 +66,12 @@ export default function FlechadaScreen() {
     roteador.back();
   };
 
-  // Caminho pronto para a futura tela de chat que será criada depois
+  // Abre o chat e remove esta tela do histórico
   const aoIrParaChat = () => {
-    roteador.push({
+    roteador.replace({
       pathname: "/chat" as any,
       params: {
-        idParceiro,
+        canalId,
         nomeParceiro,
         fotoParceiro,
       },
@@ -124,15 +99,22 @@ export default function FlechadaScreen() {
           {"Vocês deram uma\nflechada mútua !"}
         </Text>
 
-        {/* Fotos de perfil dos dois usuários com o ícone de arco e flecha no centro */}
+        {/* Fotos dos dois usuários com o ícone de arco e flecha no centro */}
         <View style={estilos.linhaAvatares}>
-          <Image
-            source={{ uri: fotoUsuarioLogado }}
-            style={estilos.avatar}
-          />
+          {fotoUsuarioLogado ? (
+            <Image source={{ uri: fotoUsuarioLogado }} style={estilos.avatar} />
+          ) : (
+            <View style={[estilos.avatar, estilos.avatarCarregando]}>
+              <Ionicons
+                name="person"
+                size={56}
+                color="rgba(255, 255, 255, 0.4)"
+              />
+            </View>
+          )}
 
           <Image
-            source={{ uri: fotoParceiro || FOTO_PADRAO_USUARIO }}
+            source={{ uri: fotoParceiro || FOTO_PADRAO_PARCEIRO }}
             style={estilos.avatar}
           />
 
@@ -146,9 +128,7 @@ export default function FlechadaScreen() {
         </View>
 
         {/* Subtítulo */}
-        <Text style={estilos.subtitulo}>
-          {"Agora vocês podem\nconversar!"}
-        </Text>
+        <Text style={estilos.subtitulo}>{"Agora vocês podem\nconversar!"}</Text>
 
         {/* Botões de ação */}
         <View style={estilos.containerBotoes}>
@@ -215,6 +195,11 @@ const estilos = StyleSheet.create({
     borderRadius: 71,
     borderWidth: 1.5,
     borderColor: "rgba(255, 255, 255, 0.75)",
+  },
+  avatarCarregando: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   emblemaFlecha: {
     position: "absolute",

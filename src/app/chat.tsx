@@ -3,15 +3,17 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -26,117 +28,113 @@ interface Mensagem {
 const FOTO_FALLBACK =
   "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400";
 
-const MENSAGENS_INICIAIS: Mensagem[] = [
-  {
-    id: "1",
-    texto: "Oi! Tudo bem? 😊",
-    enviadaPorMim: false,
-  },
-  {
-    id: "2",
-    texto: "Tudo sim! E você?",
-    enviadaPorMim: true,
-  },
-  {
-    id: "3",
-    texto: "Tô bem tbm! Curso Direito.\nE você?",
-    enviadaPorMim: false,
-  },
-  {
-    id: "4",
-    texto:
-      "Que legal! Curso Ciência da computação. Em qual semestre você está?",
-    enviadaPorMim: true,
-  },
-  {
-    id: "5",
-    texto: "5° Semestre e você?",
-    enviadaPorMim: false,
-  },
-];
+const INTERVALO_ATUALIZACAO_MS = 4000;
+
+const primeiro = (valor?: string | string[]) =>
+  Array.isArray(valor) ? valor[0] : valor;
+
+const converter = (m: any): Mensagem => ({
+  id: String(m.id),
+  texto: m.texto ?? "",
+  enviadaPorMim: Boolean(m.enviada_por_mim),
+});
 
 export default function ChatScreen() {
   const router = useRouter();
   const listaRef = useRef<FlatList<Mensagem>>(null);
 
   const params = useLocalSearchParams<{
-    idParceiro?: string;
+    canalId?: string;
     nomeParceiro?: string;
     fotoParceiro?: string;
   }>();
 
-  const idParceiro = Array.isArray(params.idParceiro)
-    ? params.idParceiro[0]
-    : params.idParceiro;
+  const canalId = primeiro(params.canalId);
+  const nomeParceiro = primeiro(params.nomeParceiro) || "Conversa";
+  const fotoParceiro = primeiro(params.fotoParceiro) || FOTO_FALLBACK;
 
-  const nomeParceiro =
-    (Array.isArray(params.nomeParceiro)
-      ? params.nomeParceiro[0]
-      : params.nomeParceiro) || "Gabriel";
-
-  const fotoParceiro =
-    (Array.isArray(params.fotoParceiro)
-      ? params.fotoParceiro[0]
-      : params.fotoParceiro) || FOTO_FALLBACK;
-
-  const [mensagens, setMensagens] = useState<Mensagem[]>(MENSAGENS_INICIAIS);
+  const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [textoInput, setTextoInput] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [termoBusca, setTermoBusca] = useState("");
 
+  // Maior id de mensagem já recebido (usado para buscar só as novas)
+  const ultimoIdRef = useRef(0);
+  const enviandoRef = useRef(false);
+
+  // Junta mensagens novas sem duplicar (o polling e o envio podem trazer a mesma)
+  const adicionarMensagens = (recebidas: any[]) => {
+    if (recebidas.length === 0) return;
+
+    ultimoIdRef.current = Math.max(
+      ultimoIdRef.current,
+      ...recebidas.map((m) => Number(m.id)),
+    );
+
+    setMensagens((anteriores) => {
+      const ids = new Set(anteriores.map((m) => m.id));
+      const novas = recebidas.map(converter).filter((m) => !ids.has(m.id));
+      return novas.length > 0 ? [...anteriores, ...novas] : anteriores;
+    });
+  };
+
+  // Carrega o histórico e depois atualiza a cada poucos segundos
   useEffect(() => {
-    let ativo = true;
-
-    async function carregarHistorico() {
-      if (!idParceiro) return;
-      try {
-        const response = await api.get(`conversas/${idParceiro}/mensagens/`);
-        const dados = Array.isArray(response.data) ? response.data : [];
-
-        if (ativo && dados.length > 0) {
-          const formatadas: Mensagem[] = dados.map((m: any) => ({
-            id: String(m.id),
-            texto: m.texto || m.conteudo || "",
-            enviadaPorMim: Boolean(m.enviada_por_mim ?? m.remetente_eu),
-          }));
-          setMensagens(formatadas);
-        }
-      } catch {
-        // Mantém as mensagens iniciais de exemplo caso o endpoint ainda não esteja ativo
-      }
+    if (!canalId) {
+      setCarregando(false);
+      return;
     }
 
-    carregarHistorico();
+    let ativo = true;
+    let temporizador: ReturnType<typeof setTimeout> | undefined;
+
+    const buscar = async () => {
+      try {
+        const resposta = await api.get(`feed/canais/${canalId}/mensagens/`, {
+          params: ultimoIdRef.current
+            ? { depois: ultimoIdRef.current }
+            : undefined,
+        });
+        if (ativo && Array.isArray(resposta.data)) {
+          adicionarMensagens(resposta.data);
+        }
+      } catch {
+        // Falha momentânea de rede: tenta de novo no próximo ciclo
+      } finally {
+        if (ativo) {
+          setCarregando(false);
+          temporizador = setTimeout(buscar, INTERVALO_ATUALIZACAO_MS);
+        }
+      }
+    };
+
+    buscar();
+
     return () => {
       ativo = false;
+      if (temporizador) clearTimeout(temporizador);
     };
-  }, [idParceiro]);
+  }, [canalId]);
 
   const enviarMensagem = async () => {
     const conteudo = textoInput.trim();
-    if (!conteudo) return;
+    if (!conteudo || !canalId || enviandoRef.current) return;
 
-    const novaMensagem: Mensagem = {
-      id: String(Date.now()),
-      texto: conteudo,
-      enviadaPorMim: true,
-    };
-
-    setMensagens((prev) => [...prev, novaMensagem]);
+    enviandoRef.current = true;
     setTextoInput("");
 
-    setTimeout(() => {
-      listaRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-
-    if (idParceiro) {
-      try {
-        await api.post(`conversas/${idParceiro}/mensagens/`, {
-          texto: conteudo,
-        });
-      } catch {
-        // Mantém a mensagem exibida localmente durante testes offline/sem endpoint
-      }
+    try {
+      const resposta = await api.post(`feed/canais/${canalId}/mensagens/`, {
+        texto: conteudo,
+      });
+      adicionarMensagens([resposta.data]);
+    } catch {
+      // Devolve o texto ao campo para o usuário tentar de novo
+      setTextoInput(conteudo);
+      Alert.alert("Ops!", "Não foi possível enviar a mensagem.");
+    } finally {
+      enviandoRef.current = false;
     }
   };
 
@@ -185,10 +183,7 @@ export default function ChatScreen() {
 
           <Image source={{ uri: fotoParceiro }} style={styles.headerAvatar} />
 
-          <View>
-            <Text style={styles.headerName}>{nomeParceiro}</Text>
-            <Text style={styles.headerStatus}>Online</Text>
-          </View>
+          <Text style={styles.headerName}>{nomeParceiro}</Text>
         </View>
 
         <TouchableOpacity
@@ -223,17 +218,23 @@ export default function ChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <FlatList
-          ref={listaRef}
-          data={mensagensFiltradas}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMensagem}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() =>
-            listaRef.current?.scrollToEnd({ animated: false })
-          }
-        />
+        {carregando ? (
+          <View style={{ flex: 1, justifyContent: "center" }}>
+            <ActivityIndicator size="large" color="#E91E63" />
+          </View>
+        ) : (
+          <FlatList
+            ref={listaRef}
+            data={mensagensFiltradas}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMensagem}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() =>
+              listaRef.current?.scrollToEnd({ animated: true })
+            }
+          />
+        )}
 
         {/* Campo inferior de envio */}
         <View style={styles.inputBar}>
@@ -244,6 +245,7 @@ export default function ChatScreen() {
             placeholderTextColor="#CCCCCC"
             style={styles.textInput}
             multiline
+            maxLength={2000}
           />
 
           <TouchableOpacity
@@ -296,12 +298,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
-  },
-  headerStatus: {
-    color: "#4CAF50",
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: 1,
   },
   searchButton: {
     padding: 8,

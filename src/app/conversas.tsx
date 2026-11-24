@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../services/api";
 
 export interface MatchItem {
-  id: string;
+  id: string; // canal_id
   nome: string;
   curso: string;
   foto: string;
@@ -26,57 +26,10 @@ export interface MatchItem {
 
 type AbaAtiva = "matches" | "conversas";
 
-// Dados de fallback para visualização caso o endpoint de matches ainda esteja vazio
-const MATCHES_FALLBACK: MatchItem[] = [
-  {
-    id: "1",
-    nome: "Gabriel",
-    curso: "Direito",
-    foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400",
-    ultimaMensagem: "Vamos marcar algo essa semana?",
-    naoLidas: 1,
-  },
-  {
-    id: "2",
-    nome: "João Pedro",
-    curso: "Cinema",
-    foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-    ultimaMensagem: "Ahh, legal! 😂",
-    naoLidas: 1,
-  },
-  {
-    id: "3",
-    nome: "Victor",
-    curso: "Odontologia",
-    foto: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400",
-    ultimaMensagem: "Top! Até mais :)",
-    naoLidas: 1,
-  },
-  {
-    id: "4",
-    nome: "Júnior",
-    curso: "Farmácia",
-    foto: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400",
-    ultimaMensagem: "Qual semestre você cursa?",
-    naoLidas: 1,
-  },
-  {
-    id: "5",
-    nome: "Heitor",
-    curso: "Administração",
-    foto: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400",
-    ultimaMensagem: "Você: Boa 😂",
-    naoLidas: 0,
-  },
-  {
-    id: "6",
-    nome: "Lucas",
-    curso: "Direito",
-    foto: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400",
-    ultimaMensagem: "Você: Tô animada pra gente sair",
-    naoLidas: 0,
-  },
-];
+const FOTO_PADRAO =
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400";
+
+const INTERVALO_ATUALIZACAO_MS = 5000;
 
 export default function MatchesConversasScreen() {
   const router = useRouter();
@@ -88,74 +41,77 @@ export default function MatchesConversasScreen() {
   const [listaMatches, setListaMatches] = useState<MatchItem[]>([]);
   const [carregando, setCarregando] = useState(true);
 
+  // Carrega ao ganhar foco (ex.: voltando do chat) e atualiza a cada poucos segundos
   useFocusEffect(
     useCallback(() => {
       let ativo = true;
+      let temporizador: ReturnType<typeof setTimeout> | undefined;
 
       async function carregarMatches() {
         try {
-          setCarregando(true);
-          // Busca os matches mútuos no backend
-          const response = await api.get("matches/");
+          const response = await api.get("feed/matches/");
           const dadosApi = Array.isArray(response.data) ? response.data : [];
 
           if (ativo) {
-            if (dadosApi.length > 0) {
-              const formatados: MatchItem[] = dadosApi.map((item: any) => ({
-                id: String(item.id || item.usuario_id || item.parceiro?.id),
-                nome: item.nome || item.parceiro?.nome || "Estudante",
-                curso: item.curso || item.parceiro?.curso || "UNAMA",
-                foto:
-                  item.foto ||
-                  item.fotos?.[0] ||
-                  item.parceiro?.fotos?.[0] ||
-                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
-                ultimaMensagem: item.ultima_mensagem || "Vocês deram uma flechada!",
+            setListaMatches(
+              dadosApi.map((item: any) => ({
+                id: String(item.canal_id),
+                nome: item.nome ?? "Estudante",
+                curso: item.curso ?? "UNAMA",
+                foto: item.foto || FOTO_PADRAO,
+                ultimaMensagem: item.ultima_mensagem ?? undefined,
                 naoLidas: item.nao_lidas ?? 0,
-              }));
-              setListaMatches(formatados);
-            } else {
-              setListaMatches(MATCHES_FALLBACK);
-            }
+              })),
+            );
           }
-        } catch {
-          // Usa o fallback enquanto a rota de matches não retorna dados
-          if (ativo) {
-            setListaMatches(MATCHES_FALLBACK);
-          }
+        } catch (erro: any) {
+          console.log(
+            "ERRO MATCHES:",
+            erro?.response?.status,
+            erro?.response?.data,
+            `${erro?.config?.baseURL}${erro?.config?.url}`,
+          );
+          // Mantém a lista anterior em caso de falha momentânea
         } finally {
-          if (ativo) setCarregando(false);
+          if (ativo) {
+            setCarregando(false);
+            temporizador = setTimeout(
+              carregarMatches,
+              INTERVALO_ATUALIZACAO_MS,
+            );
+          }
         }
       }
 
       carregarMatches();
+
       return () => {
         ativo = false;
+        if (temporizador) clearTimeout(temporizador);
       };
     }, []),
   );
 
-  // Abre a tela de chat com os mesmos parâmetros usados em flechada.tsx
+  // Abre o chat do canal desse match
   const abrirChat = (item: MatchItem) => {
     router.push({
       pathname: "/chat" as any,
       params: {
-        idParceiro: item.id,
+        canalId: item.id,
         nomeParceiro: item.nome,
         fotoParceiro: item.foto,
       },
     });
   };
 
-  // Filtra apenas quem já tem conversa iniciada na aba "conversas"
+  // Na aba "conversas" aparece só quem já trocou mensagem
   const dadosExibidos =
     abaAtiva === "matches"
       ? listaMatches
       : listaMatches.filter((m) => Boolean(m.ultimaMensagem));
 
   const renderItem = ({ item }: { item: MatchItem }) => {
-    const mostrarBadge =
-      abaAtiva === "conversas" && (item.naoLidas ?? 0) > 0;
+    const mostrarBadge = abaAtiva === "conversas" && (item.naoLidas ?? 0) > 0;
 
     return (
       <TouchableOpacity
@@ -173,7 +129,7 @@ export default function MatchesConversasScreen() {
 
             <Text style={styles.itemSubtitle} numberOfLines={1}>
               {abaAtiva === "matches"
-                ? `Estudante de  ${item.curso}`
+                ? `Estudante de ${item.curso}`
                 : item.ultimaMensagem}
             </Text>
           </View>
@@ -192,7 +148,6 @@ export default function MatchesConversasScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="light" />
 
-      {/* Cabeçalho com logo centralizada e sino de notificações */}
       <View style={styles.header}>
         <View style={styles.headerSideSpacer} />
 
@@ -211,7 +166,6 @@ export default function MatchesConversasScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Seletor em pílula: matches | conversas */}
       <View style={styles.segmentWrapper}>
         <View style={styles.segmentContainer}>
           <TouchableOpacity
@@ -252,7 +206,6 @@ export default function MatchesConversasScreen() {
         </View>
       </View>
 
-      {/* Lista de pessoas (matches ou conversas) */}
       {carregando ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#E91E63" />
@@ -274,9 +227,7 @@ export default function MatchesConversasScreen() {
         />
       )}
 
-      {/* Barra de navegação inferior */}
       <View style={styles.bottomNav}>
-        {/* Home / Feed */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
@@ -285,7 +236,6 @@ export default function MatchesConversasScreen() {
           <Ionicons name="home-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
-        {/* Aba Matches (Coração) */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
@@ -305,7 +255,6 @@ export default function MatchesConversasScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Aba Conversas (Chat) */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
@@ -325,7 +274,6 @@ export default function MatchesConversasScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Perfil */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}

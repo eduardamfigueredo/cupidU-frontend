@@ -46,15 +46,39 @@ export async function fetchFeedProfiles(): Promise<Profile[]> {
   }));
 }
 
+export type ResultadoInteracao = {
+  matched: boolean;
+  canalId?: string;
+  partner?: { nome?: string; foto_url?: string };
+};
+
 export async function registerInteraction(
   targetProfileId: string,
   action: "LIKE" | "DISLIKE",
-) {
-  const endpoint = action === "LIKE" ? "curtir/" : "rejeitar/";
+): Promise<ResultadoInteracao> {
+  // As rotas do Django ficam sob o prefixo "feed/"
+  const endpoint = action === "LIKE" ? "feed/curtir/" : "feed/rejeitar/";
 
   const response = await api.post(endpoint, {
     alvo_id: Number(targetProfileId),
   });
 
-  return response.data;
+  // Rejeitar nunca gera match
+  if (action === "DISLIKE") {
+    return { matched: false };
+  }
+
+  const dados = response.data;
+
+  return {
+    matched: Boolean(dados.match),
+    canalId: dados.canal_id ? String(dados.canal_id) : undefined,
+    partner: dados.perfil
+      ? {
+          nome: dados.perfil.nome,
+          // o backend devolve "fotos" (lista), então pega a primeira
+          foto_url: dados.perfil.fotos?.[0],
+        }
+      : undefined,
+  };
 }

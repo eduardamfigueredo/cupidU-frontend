@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -34,6 +35,9 @@ export default function FeedScreen() {
   // Posição animada do cartão ao arrastar
   const posicaoCartao = useRef(new Animated.ValueXY()).current;
 
+  // Evita processar dois gestos/toques ao mesmo tempo (duplo clique no botão)
+  const processandoRef = useRef(false);
+
   // Carrega os dados na montagem da tela
   useEffect(() => {
     fetchFeedProfiles().then((dados: Profile[]) => definirPerfis(dados));
@@ -41,27 +45,41 @@ export default function FeedScreen() {
 
   // Processa o arraste ou clique de Like/Dislike
   const lidarComDeslize = async (direcao: "right" | "left") => {
+    if (processandoRef.current) return;
+
     const perfilAtual = perfis[indiceAtual];
+    if (!perfilAtual) return;
+
+    processandoRef.current = true;
 
     // Reseta a posição do cartão e avança para o próximo perfil
     posicaoCartao.setValue({ x: 0, y: 0 });
     definirIndiceAtual((anterior) => anterior + 1);
 
-    if (perfilAtual) {
+    try {
       const acao = direcao === "right" ? "LIKE" : "DISLIKE";
       const resultado = await registerInteraction(perfilAtual.id, acao);
 
-      // Ao arrastar para o lado direito e dar flechada, abre a tela /flechada
+      // Só a flechada (LIKE) pode gerar match: abre a tela /flechada
       if (direcao === "right" && resultado?.matched) {
         roteador.push({
           pathname: "/flechada" as any,
           params: {
-            fotoParceiro: perfilAtual.image,
-            nomeParceiro: perfilAtual.name,
-            idParceiro: perfilAtual.id,
+            // Prefere os dados devolvidos pelo backend e cai para os do feed
+            fotoParceiro: resultado.partner?.foto_url ?? perfilAtual.image,
+            nomeParceiro: resultado.partner?.nome ?? perfilAtual.name,
+            canalId: resultado.canalId ?? "",
           },
         });
       }
+    } catch (erro) {
+      // Falha de rede/servidor: o perfil já saiu da pilha, então avisa o usuário
+      Alert.alert(
+        "Ops!",
+        "Não foi possível registrar sua ação. Tente novamente.",
+      );
+    } finally {
+      processandoRef.current = false;
     }
   };
 
@@ -203,7 +221,13 @@ export default function FeedScreen() {
           <Text style={estilos.textoVazio}>Sem novos perfis por enquanto!</Text>
           <TouchableOpacity
             style={estilos.botaoRecarregar}
-            onPress={() => definirIndiceAtual(0)}
+            onPress={() => {
+              // Busca de novo no backend: perfis já respondidos não voltam
+              fetchFeedProfiles().then((dados: Profile[]) => {
+                definirPerfis(dados);
+                definirIndiceAtual(0);
+              });
+            }}
           >
             <Text style={estilos.textoBotaoRecarregar}>Reiniciar Feed</Text>
           </TouchableOpacity>
