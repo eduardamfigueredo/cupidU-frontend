@@ -100,7 +100,7 @@ export default function FeedScreen() {
           }).start();
         }
       },
-    })
+    }),
   ).current;
 
   // Inclinação suave enquanto arrasta o cartão
@@ -114,7 +114,7 @@ export default function FeedScreen() {
   const perfilAtual = perfis[indiceAtual];
 
   return (
-    <SafeAreaView style={estilos.container}>
+    <SafeAreaView style={estilos.container} edges={["top"]}>
       <StatusBar style="light" />
 
       {/* Topo com o Logo PNG Oficial */}
@@ -209,6 +209,53 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Barra de navegação inferior */}
+      <View style={estilos.bottomNav}>
+        {/* Home / Feed (Ativa) */}
+        <TouchableOpacity style={estilos.navItem} activeOpacity={0.8}>
+          <View style={[estilos.navIconWrapper, estilos.navIconActiveCircle]}>
+            <Ionicons name="home-outline" size={24} color="#000000" />
+          </View>
+        </TouchableOpacity>
+
+        {/* Aba Matches (Coração) */}
+        <TouchableOpacity
+          style={estilos.navItem}
+          activeOpacity={0.8}
+          onPress={() =>
+            roteador.push({
+              pathname: "/conversas" as any,
+              params: { aba: "matches" },
+            })
+          }
+        >
+          <Ionicons name="heart-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Aba Conversas (Chat) */}
+        <TouchableOpacity
+          style={estilos.navItem}
+          activeOpacity={0.8}
+          onPress={() =>
+            roteador.push({
+              pathname: "/conversas" as any,
+              params: { aba: "conversas" },
+            })
+          }
+        >
+          <Ionicons name="chatbox-outline" size={23} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Perfil */}
+        <TouchableOpacity
+          style={estilos.navItem}
+          activeOpacity={0.8}
+          onPress={() => roteador.push("/perfil" as any)}
+        >
+          <Ionicons name="person-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -237,7 +284,7 @@ const estilos = StyleSheet.create({
   cartao: {
     width: LARGURA_TELA * 0.9,
     flex: 1,
-    maxHeight: 640,
+    maxHeight: 600,
     backgroundColor: "#0D0709",
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -245,10 +292,10 @@ const estilos = StyleSheet.create({
   },
   wrapperImagem: {
     width: "100%",
-    height: "54%",
+    height: "50%",
     borderRadius: 28,
     overflow: "hidden",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   imagemCartao: {
     width: "100%",
@@ -259,13 +306,13 @@ const estilos = StyleSheet.create({
     fontSize: 26,
     fontWeight: "800",
     color: "#FAF3EB",
-    marginBottom: 14,
+    marginBottom: 12,
     marginLeft: 4,
   },
   containerInfo: {
     width: "100%",
-    gap: 10,
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: 16,
     paddingLeft: 4,
   },
   linhaInfo: {
@@ -285,12 +332,12 @@ const estilos = StyleSheet.create({
     width: "100%",
     gap: 28,
     marginTop: "auto",
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   botaoRejeitar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     borderWidth: 2,
     borderColor: "#E91E63",
     backgroundColor: "transparent",
@@ -298,9 +345,9 @@ const estilos = StyleSheet.create({
     justifyContent: "center",
   },
   botaoCurtir: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: "#E91E63",
     alignItems: "center",
     justifyContent: "center",
@@ -329,5 +376,29 @@ const estilos = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 15,
+  },
+  bottomNav: {
+    height: 66,
+    backgroundColor: "#E91E63",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navIconActiveCircle: {
+    borderWidth: 2,
+    borderColor: "#000000",
   },
 });

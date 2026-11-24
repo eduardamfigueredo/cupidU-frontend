@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -12,7 +12,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../lib/supabase";
 import { api } from "../services/api";
 
 // Formato devolvido pelo backend (PerfilSerializer)
@@ -85,9 +84,8 @@ export default function ProfileScreen() {
     router.push({ pathname: "/completar-perfil", params: { modo: "editar" } });
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace("/login");
+  const handleLogout = () => {
+    router.push("/sair");
   };
 
   if (loading) {
@@ -115,7 +113,7 @@ export default function ProfileScreen() {
     .join(" * ");
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" />
 
       {/* Cabeçalho */}
@@ -212,6 +210,53 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Barra de navegação inferior */}
+      <View style={styles.bottomNav}>
+        {/* Home / Feed */}
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={() => router.replace("/feed")}
+        >
+          <Ionicons name="home-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Aba Matches (Coração) */}
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={() =>
+            router.push({
+              pathname: "/conversas" as any,
+              params: { aba: "matches" },
+            })
+          }
+        >
+          <Ionicons name="heart-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Aba Conversas (Chat) */}
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={() =>
+            router.push({
+              pathname: "/conversas" as any,
+              params: { aba: "conversas" },
+            })
+          }
+        >
+          <Ionicons name="chatbox-outline" size={23} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Perfil (Ativa) */}
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8}>
+          <View style={[styles.navIconWrapper, styles.navIconActiveCircle]}>
+            <Ionicons name="person-outline" size={24} color="#000000" />
+          </View>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -246,7 +291,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
     paddingTop: 10,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
   avatarContainer: {
     width: 130,
@@ -360,5 +405,29 @@ const styles = StyleSheet.create({
     opacity: 1,
     borderWidth: 2,
     borderColor: "#E91E63",
+  },
+  bottomNav: {
+    height: 66,
+    backgroundColor: "#E91E63",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navIconActiveCircle: {
+    borderWidth: 2,
+    borderColor: "#000000",
   },
 });
