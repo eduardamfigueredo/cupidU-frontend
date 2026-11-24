@@ -1,38 +1,59 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MOCK_PROFILES, Profile } from "../data/mockProfiles";
+import { Profile } from "@/data/mockProfiles";
+import { supabase } from "../lib/supabase";
 import { api } from "./api";
 
-// HOJE: Puxa do Mock no próprio Front
-// DEPOIS: A pessoa do back troca isso por: await api.get('/feed')
-export const fetchFeedProfiles = async (): Promise<Profile[]> => {
-  return new Promise((resolve) => {
-    // Simula 500ms de carregamento da rede
-    setTimeout(() => {
-      resolve(MOCK_PROFILES);
-    }, 500);
-  });
-};
-
-// HOJE: Apenas simula o envio do Like/Dislike
-// DEPOIS: A pessoa do back troca por: await api.post('/interactions', { targetUserId, action })
-export const registerInteraction = async (
-  targetUserId: string,
-  action: "LIKE" | "DISLIKE",
-) => {
-  console.log(
-    `[FRONT] Ação ${action} registrada para o perfil ID: ${targetUserId}`,
-  );
-  return true;
-};
-
 export async function criarPerfil(dados: any) {
-  const token = await AsyncStorage.getItem("access_token");
-  console.log("TOKEN RECUPERADO:", token);
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error || !session) {
+    throw new Error("SEM_SESSAO");
+  }
 
   const response = await api.post("perfis/", dados, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${session.access_token}`,
     },
+  });
+
+  return response.data;
+}
+
+export async function fetchFeedProfiles(): Promise<Profile[]> {
+  const response = await api.get("feed/");
+
+  return response.data.map((perfil: any) => ({
+    id: String(perfil.id),
+
+    name: perfil.nome,
+    age: perfil.idade,
+
+    course: perfil.curso,
+    campus: perfil.campus,
+
+    status: perfil.bio || perfil.estado_civil,
+
+    image:
+      perfil.fotos?.length > 0
+        ? perfil.fotos[0]
+        : "https://via.placeholder.com/500",
+
+    location: perfil.campus,
+
+    bio: perfil.bio || "",
+  }));
+}
+
+export async function registerInteraction(
+  targetProfileId: string,
+  action: "LIKE" | "DISLIKE",
+) {
+  const endpoint = action === "LIKE" ? "curtir/" : "rejeitar/";
+
+  const response = await api.post(endpoint, {
+    alvo_id: Number(targetProfileId),
   });
 
   return response.data;

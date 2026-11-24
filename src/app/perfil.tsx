@@ -1,66 +1,92 @@
-import React, { useEffect, useState } from "react";
+import { Feather } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  SafeAreaView,
-  View,
+  ActivityIndicator,
   Image,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
   ScrollView,
   StatusBar,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../lib/supabase";
+import { api } from "../services/api";
 
-// Interface do perfil retornada do backend
+// Formato devolvido pelo backend (PerfilSerializer)
 interface UserProfile {
-  name: string;
-  age: number;
-  course: string;
+  id: number;
+  nome: string;
+  idade: number;
+  curso: string;
   campus: string;
-  tags: string[];
+  orientacao: string;
+  estado_civil: string;
   bio: string;
-  image: string;
+  fotos: string[];
 }
 
 export default function ProfileScreen() {
   const router = useRouter();
 
-  // Estados para os dados do perfil e carregamento
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fotoAtual, setFotoAtual] = useState(0);
 
-  // Simulação de busca dos dados no backend/Supabase
-  useEffect(() => {
-    async function loadUserProfile() {
-      try {
-        const data: UserProfile = {
-          name: "Ana Clara",
-          age: 20,
-          course: "Ciência Da Computação",
-          campus: "Campus Belém",
-          tags: ["Sincera", "Gosta de jogos"],
-          bio: "Amo tecnologia, música e bons bate-papos. Sempre disposta a conhecer novas coisas!",
-          image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500",
-        };
+  // Recarrega sempre que a tela ganha foco (ex.: depois de editar)
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
 
-        setUser(data);
-      } catch (error) {
-        console.error("Erro ao carregar perfil:", error);
-      } finally {
-        setLoading(false);
+      async function loadUserProfile() {
+        try {
+          setLoading(true);
+          const response = await api.get("perfis/me/");
+          console.log("PERFIL:", response.data);
+
+          if (ativo) {
+            setUser(response.data);
+            setFotoAtual(0);
+          }
+        } catch (error: any) {
+          console.log(
+            "ERRO PERFIL:",
+            error?.response?.status,
+            error?.response?.data,
+          );
+
+          if (error?.response?.status === 404) {
+            router.replace("/completar-perfil");
+            return;
+          }
+          if (
+            error?.response?.status === 401 ||
+            error?.response?.status === 403
+          ) {
+            router.replace("/login");
+            return;
+          }
+          if (ativo) setUser(null);
+        } finally {
+          if (ativo) setLoading(false);
+        }
       }
-    }
 
-    loadUserProfile();
-  }, []);
+      loadUserProfile();
+      return () => {
+        ativo = false;
+      };
+    }, [router]),
+  );
 
   const handleEditProfile = () => {
-    router.push("/completar-perfil");
+    router.push({ pathname: "/completar-perfil", params: { modo: "editar" } });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.replace("/login");
   };
 
@@ -79,6 +105,14 @@ export default function ProfileScreen() {
       </SafeAreaView>
     );
   }
+
+  // Orientação e estado civil viram "tags" (ignora as vazias)
+  const tags = [user.orientacao, user.estado_civil].filter(Boolean);
+
+  // Monta a linha de detalhes sem deixar "separadores" soltos
+  const detalhes = [`${user.idade} anos`, user.curso, user.campus]
+    .filter(Boolean)
+    .join(" * ");
 
   return (
     <SafeAreaView style={styles.container}>
@@ -104,22 +138,41 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Foto de Perfil */}
+        {/* Foto principal */}
         <View style={styles.avatarContainer}>
-          <Image source={{ uri: user.image }} style={styles.avatar} />
+          {user.fotos?.[fotoAtual] ? (
+            <Image
+              source={{ uri: user.fotos[fotoAtual] }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: "#333" }]} />
+          )}
         </View>
 
+        {/* Miniaturas para trocar a foto (só se houver mais de uma) */}
+        {user.fotos?.length > 1 && (
+          <View style={styles.thumbsRow}>
+            {user.fotos.map((uri, i) => (
+              <TouchableOpacity key={uri + i} onPress={() => setFotoAtual(i)}>
+                <Image
+                  source={{ uri }}
+                  style={[styles.thumb, i === fotoAtual && styles.thumbAtiva]}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Nome */}
-        <Text style={styles.name}>{user.name}</Text>
+        <Text style={styles.name}>{user.nome}</Text>
 
         {/* Detalhes */}
-        <Text style={styles.details}>
-          {user.age} anos * {user.course} * {user.campus}
-        </Text>
+        <Text style={styles.details}>{detalhes}</Text>
 
         {/* Tags */}
         <View style={styles.tagsContainer}>
-          {user.tags.map((tag, index) => (
+          {tags.map((tag, index) => (
             <View key={index} style={styles.tagBadge}>
               <Text style={styles.tagText}>{tag}</Text>
             </View>
@@ -127,12 +180,14 @@ export default function ProfileScreen() {
         </View>
 
         {/* Bio */}
-        <View style={styles.bioContainer}>
-          <Text style={styles.bioTitle}>Sobre mim</Text>
-          <Text style={styles.bioText}>{user.bio}</Text>
-        </View>
+        {!!user.bio && (
+          <View style={styles.bioContainer}>
+            <Text style={styles.bioTitle}>Sobre mim</Text>
+            <Text style={styles.bioText}>{user.bio}</Text>
+          </View>
+        )}
 
-        {/* Botões de Ação */}
+        {/* Botões de ação */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.editButton}
@@ -147,7 +202,12 @@ export default function ProfileScreen() {
             onPress={handleLogout}
             activeOpacity={0.8}
           >
-            <Feather name="log-out" size={20} color="#E91E63" style={styles.logoutIcon} />
+            <Feather
+              name="log-out"
+              size={20}
+              color="#E91E63"
+              style={styles.logoutIcon}
+            />
             <Text style={styles.logoutButtonText}>Sair</Text>
           </TouchableOpacity>
         </View>
@@ -283,5 +343,22 @@ const styles = StyleSheet.create({
     color: "#E91E63",
     fontSize: 18,
     fontWeight: "600",
+  },
+  thumbsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  thumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    opacity: 0.6,
+  },
+  thumbAtiva: {
+    opacity: 1,
+    borderWidth: 2,
+    borderColor: "#E91E63",
   },
 });
