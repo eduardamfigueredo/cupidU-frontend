@@ -19,64 +19,12 @@ export interface MatchItem {
   id: string;
   nome: string;
   curso: string;
-  foto: string;
+  foto: string | null;
   ultimaMensagem?: string;
   naoLidas?: number;
 }
 
 type AbaAtiva = "matches" | "conversas";
-
-// Dados de fallback para visualização caso o endpoint de matches ainda esteja vazio
-const MATCHES_FALLBACK: MatchItem[] = [
-  {
-    id: "1",
-    nome: "Gabriel",
-    curso: "Direito",
-    foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400",
-    ultimaMensagem: "Vamos marcar algo essa semana?",
-    naoLidas: 1,
-  },
-  {
-    id: "2",
-    nome: "João Pedro",
-    curso: "Cinema",
-    foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-    ultimaMensagem: "Ahh, legal! 😂",
-    naoLidas: 1,
-  },
-  {
-    id: "3",
-    nome: "Victor",
-    curso: "Odontologia",
-    foto: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400",
-    ultimaMensagem: "Top! Até mais :)",
-    naoLidas: 1,
-  },
-  {
-    id: "4",
-    nome: "Júnior",
-    curso: "Farmácia",
-    foto: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400",
-    ultimaMensagem: "Qual semestre você cursa?",
-    naoLidas: 1,
-  },
-  {
-    id: "5",
-    nome: "Heitor",
-    curso: "Administração",
-    foto: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400",
-    ultimaMensagem: "Você: Boa 😂",
-    naoLidas: 0,
-  },
-  {
-    id: "6",
-    nome: "Lucas",
-    curso: "Direito",
-    foto: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400",
-    ultimaMensagem: "Você: Tô animada pra gente sair",
-    naoLidas: 0,
-  },
-];
 
 export default function MatchesConversasScreen() {
   const router = useRouter();
@@ -87,67 +35,67 @@ export default function MatchesConversasScreen() {
   );
   const [listaMatches, setListaMatches] = useState<MatchItem[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erroApi, setErroApi] = useState<string | null>(null);
+
+  const carregarMatches = useCallback(async (isMounted?: () => boolean) => {
+    try {
+      setCarregando(true);
+      setErroApi(null);
+
+      const response = await api.get("matches/");
+      const dadosApi = Array.isArray(response.data) ? response.data : [];
+
+      if (!isMounted || isMounted()) {
+        const formatados: MatchItem[] = dadosApi.map((item: any) => ({
+          id: String(item.id || item.usuario_id || item.parceiro?.id),
+          nome: item.nome || item.parceiro?.nome || "Estudante",
+          curso: item.curso || item.parceiro?.curso || "UNAMA",
+          foto:
+            item.foto ||
+            item.fotos?.[0] ||
+            item.parceiro?.fotos?.[0] ||
+            null,
+          ultimaMensagem: item.ultima_mensagem || undefined,
+          naoLidas: item.nao_lidas ?? 0,
+        }));
+        setListaMatches(formatados);
+      }
+    } catch (error: any) {
+      if (!isMounted || isMounted()) {
+        setListaMatches([]);
+        const detalhe =
+          error?.response?.data?.detail ||
+          "Não foi possível carregar seus matches e conversas. Verifique sua conexão.";
+        setErroApi(detalhe);
+      }
+    } finally {
+      if (!isMounted || isMounted()) {
+        setCarregando(false);
+      }
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       let ativo = true;
-
-      async function carregarMatches() {
-        try {
-          setCarregando(true);
-          // Busca os matches mútuos no backend
-          const response = await api.get("matches/");
-          const dadosApi = Array.isArray(response.data) ? response.data : [];
-
-          if (ativo) {
-            if (dadosApi.length > 0) {
-              const formatados: MatchItem[] = dadosApi.map((item: any) => ({
-                id: String(item.id || item.usuario_id || item.parceiro?.id),
-                nome: item.nome || item.parceiro?.nome || "Estudante",
-                curso: item.curso || item.parceiro?.curso || "UNAMA",
-                foto:
-                  item.foto ||
-                  item.fotos?.[0] ||
-                  item.parceiro?.fotos?.[0] ||
-                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
-                ultimaMensagem: item.ultima_mensagem || "Vocês deram uma flechada!",
-                naoLidas: item.nao_lidas ?? 0,
-              }));
-              setListaMatches(formatados);
-            } else {
-              setListaMatches(MATCHES_FALLBACK);
-            }
-          }
-        } catch {
-          // Usa o fallback enquanto a rota de matches não retorna dados
-          if (ativo) {
-            setListaMatches(MATCHES_FALLBACK);
-          }
-        } finally {
-          if (ativo) setCarregando(false);
-        }
-      }
-
-      carregarMatches();
+      carregarMatches(() => ativo);
       return () => {
         ativo = false;
       };
-    }, []),
+    }, [carregarMatches]),
   );
 
-  // Abre a tela de chat com os mesmos parâmetros usados em flechada.tsx
   const abrirChat = (item: MatchItem) => {
     router.push({
       pathname: "/chat" as any,
       params: {
         idParceiro: item.id,
         nomeParceiro: item.nome,
-        fotoParceiro: item.foto,
+        fotoParceiro: item.foto ?? "",
       },
     });
   };
 
-  // Filtra apenas quem já tem conversa iniciada na aba "conversas"
   const dadosExibidos =
     abaAtiva === "matches"
       ? listaMatches
@@ -163,7 +111,13 @@ export default function MatchesConversasScreen() {
         activeOpacity={0.75}
         onPress={() => abrirChat(item)}
       >
-        <Image source={{ uri: item.foto }} style={styles.avatar} />
+        {item.foto ? (
+          <Image source={{ uri: item.foto }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <Ionicons name="person" size={28} color="#9E9E9E" />
+          </View>
+        )}
 
         <View style={styles.itemContent}>
           <View style={styles.itemTextBlock}>
@@ -173,7 +127,7 @@ export default function MatchesConversasScreen() {
 
             <Text style={styles.itemSubtitle} numberOfLines={1}>
               {abaAtiva === "matches"
-                ? `Estudante de  ${item.curso}`
+                ? `Estudante de ${item.curso}`
                 : item.ultimaMensagem}
             </Text>
           </View>
@@ -252,10 +206,22 @@ export default function MatchesConversasScreen() {
         </View>
       </View>
 
-      {/* Lista de pessoas (matches ou conversas) */}
+      {/* Conteúdo principal: Carregando | Erro | Lista */}
       {carregando ? (
-        <View style={styles.loadingContainer}>
+        <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#E91E63" />
+        </View>
+      ) : erroApi ? (
+        <View style={styles.centerContainer}>
+          <Feather name="alert-circle" size={44} color="#E91E63" />
+          <Text style={styles.errorText}>{erroApi}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            activeOpacity={0.8}
+            onPress={() => carregarMatches()}
+          >
+            <Text style={styles.retryButtonText}>Tentar novamente</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -276,7 +242,6 @@ export default function MatchesConversasScreen() {
 
       {/* Barra de navegação inferior */}
       <View style={styles.bottomNav}>
-        {/* Home / Feed */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
@@ -285,7 +250,6 @@ export default function MatchesConversasScreen() {
           <Ionicons name="home-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
-        {/* Aba Matches (Coração) */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
@@ -305,7 +269,6 @@ export default function MatchesConversasScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Aba Conversas (Chat) */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
@@ -325,7 +288,6 @@ export default function MatchesConversasScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Perfil */}
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
@@ -395,10 +357,30 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "500",
   },
-  loadingContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    color: "#E0E0E0",
+    fontSize: 15,
+    textAlign: "center",
+    marginTop: 14,
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  retryButton: {
+    backgroundColor: "#E91E63",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 22,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
   },
   listContent: {
     paddingHorizontal: 24,
@@ -415,6 +397,10 @@ const styles = StyleSheet.create({
     borderRadius: 31,
     marginRight: 16,
     backgroundColor: "#2A2A2A",
+  },
+  avatarPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   itemContent: {
     flex: 1,

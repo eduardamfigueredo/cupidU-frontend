@@ -1,17 +1,19 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -22,38 +24,6 @@ interface Mensagem {
   texto: string;
   enviadaPorMim: boolean;
 }
-
-const FOTO_FALLBACK =
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400";
-
-const MENSAGENS_INICIAIS: Mensagem[] = [
-  {
-    id: "1",
-    texto: "Oi! Tudo bem? 😊",
-    enviadaPorMim: false,
-  },
-  {
-    id: "2",
-    texto: "Tudo sim! E você?",
-    enviadaPorMim: true,
-  },
-  {
-    id: "3",
-    texto: "Tô bem tbm! Curso Direito.\nE você?",
-    enviadaPorMim: false,
-  },
-  {
-    id: "4",
-    texto:
-      "Que legal! Curso Ciência da computação. Em qual semestre você está?",
-    enviadaPorMim: true,
-  },
-  {
-    id: "5",
-    texto: "5° Semestre e você?",
-    enviadaPorMim: false,
-  },
-];
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -72,71 +42,118 @@ export default function ChatScreen() {
   const nomeParceiro =
     (Array.isArray(params.nomeParceiro)
       ? params.nomeParceiro[0]
-      : params.nomeParceiro) || "Gabriel";
+      : params.nomeParceiro) || "Conversa";
 
-  const fotoParceiro =
-    (Array.isArray(params.fotoParceiro)
-      ? params.fotoParceiro[0]
-      : params.fotoParceiro) || FOTO_FALLBACK;
+  const fotoParceiro = Array.isArray(params.fotoParceiro)
+    ? params.fotoParceiro[0]
+    : params.fotoParceiro;
 
-  const [mensagens, setMensagens] = useState<Mensagem[]>(MENSAGENS_INICIAIS);
+  const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erroHistorico, setErroHistorico] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
   const [textoInput, setTextoInput] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [termoBusca, setTermoBusca] = useState("");
 
-  useEffect(() => {
-    let ativo = true;
+  const carregarHistorico = useCallback(
+    async (isMounted?: () => boolean, silencioso = false) => {
+      if (!idParceiro) {
+        if (!silencioso) {
+          setCarregando(false);
+          setErroHistorico("Identificador da conversa não encontrado.");
+        }
+        return;
+      }
 
-    async function carregarHistorico() {
-      if (!idParceiro) return;
       try {
+        if (!silencioso) {
+          setCarregando(true);
+          setErroHistorico(null);
+        }
+
         const response = await api.get(`conversas/${idParceiro}/mensagens/`);
         const dados = Array.isArray(response.data) ? response.data : [];
 
-        if (ativo && dados.length > 0) {
+        if (!isMounted || isMounted()) {
           const formatadas: Mensagem[] = dados.map((m: any) => ({
             id: String(m.id),
             texto: m.texto || m.conteudo || "",
             enviadaPorMim: Boolean(m.enviada_por_mim ?? m.remetente_eu),
           }));
-          setMensagens(formatadas);
-        }
-      } catch {
-        // Mantém as mensagens iniciais de exemplo caso o endpoint ainda não esteja ativo
-      }
-    }
 
-    carregarHistorico();
+          setMensagens((prev) => {
+            const mudouTamanho = prev.length !== formatadas.length;
+            const mudouUltima =
+              prev[prev.length - 1]?.id !==
+              formatadas[formatadas.length - 1]?.id;
+
+            return mudouTamanho || mudouUltima ? formatadas : prev;
+          });
+        }
+      } catch (error: any) {
+        if (!silencioso && (!isMounted || isMounted())) {
+          setMensagens([]);
+          const detalhe =
+            error?.response?.data?.detail ||
+            "Não foi possível carregar as mensagens desta conversa.";
+          setErroHistorico(detalhe);
+        }
+      } finally {
+        if (!silencioso && (!isMounted || isMounted())) {
+          setCarregando(false);
+        }
+      }
+    },
+    [idParceiro],
+  );
+
+  useEffect(() => {
+    let ativo = true;
+
+    carregarHistorico(() => ativo, false);
+
+    const intervalo = setInterval(() => {
+      carregarHistorico(() => ativo, true);
+    }, 4000);
+
     return () => {
       ativo = false;
+      clearInterval(intervalo);
     };
-  }, [idParceiro]);
+  }, [carregarHistorico]);
 
   const enviarMensagem = async () => {
     const conteudo = textoInput.trim();
-    if (!conteudo) return;
+    if (!conteudo || !idParceiro || enviando) return;
 
-    const novaMensagem: Mensagem = {
-      id: String(Date.now()),
-      texto: conteudo,
-      enviadaPorMim: true,
-    };
+    try {
+      setEnviando(true);
+      const response = await api.post(`conversas/${idParceiro}/mensagens/`, {
+        texto: conteudo,
+      });
 
-    setMensagens((prev) => [...prev, novaMensagem]);
-    setTextoInput("");
+      const salva = response.data;
+      const novaMensagem: Mensagem = {
+        id: String(salva?.id ?? Date.now()),
+        texto: salva?.texto || salva?.conteudo || conteudo,
+        enviadaPorMim: true,
+      };
 
-    setTimeout(() => {
-      listaRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+      setMensagens((prev) => [...prev, novaMensagem]);
+      setTextoInput("");
 
-    if (idParceiro) {
-      try {
-        await api.post(`conversas/${idParceiro}/mensagens/`, {
-          texto: conteudo,
-        });
-      } catch {
-        // Mantém a mensagem exibida localmente durante testes offline/sem endpoint
-      }
+      setTimeout(() => {
+        listaRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error: any) {
+      const detalhe =
+        error?.response?.data?.detail ||
+        "Não foi possível enviar sua mensagem. Tente novamente.";
+      Alert.alert("Erro ao enviar", detalhe);
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -146,6 +163,17 @@ export default function ChatScreen() {
           m.texto.toLowerCase().includes(termoBusca.trim().toLowerCase()),
         )
       : mensagens;
+
+  const renderAvatar = (estilo: object) => {
+    if (fotoParceiro) {
+      return <Image source={{ uri: fotoParceiro }} style={estilo} />;
+    }
+    return (
+      <View style={[estilo, styles.avatarPlaceholder]}>
+        <Ionicons name="person" size={18} color="#9E9E9E" />
+      </View>
+    );
+  };
 
   const renderMensagem = ({ item }: { item: Mensagem }) => {
     if (item.enviadaPorMim) {
@@ -160,7 +188,7 @@ export default function ChatScreen() {
 
     return (
       <View style={styles.receivedRow}>
-        <Image source={{ uri: fotoParceiro }} style={styles.messageAvatar} />
+        {renderAvatar(styles.messageAvatar)}
         <View style={styles.receivedBubble}>
           <Text style={styles.messageText}>{item.texto}</Text>
         </View>
@@ -183,12 +211,9 @@ export default function ChatScreen() {
             <Feather name="arrow-left" size={22} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <Image source={{ uri: fotoParceiro }} style={styles.headerAvatar} />
+          {renderAvatar(styles.headerAvatar)}
 
-          <View>
-            <Text style={styles.headerName}>{nomeParceiro}</Text>
-            <Text style={styles.headerStatus}>Online</Text>
-          </View>
+          <Text style={styles.headerName}>{nomeParceiro}</Text>
         </View>
 
         <TouchableOpacity
@@ -223,17 +248,40 @@ export default function ChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <FlatList
-          ref={listaRef}
-          data={mensagensFiltradas}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMensagem}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() =>
-            listaRef.current?.scrollToEnd({ animated: false })
-          }
-        />
+        {carregando ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#E91E63" />
+          </View>
+        ) : erroHistorico ? (
+          <View style={styles.centerContainer}>
+            <Feather name="alert-circle" size={42} color="#E91E63" />
+            <Text style={styles.errorText}>{erroHistorico}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              activeOpacity={0.8}
+              onPress={() => carregarHistorico()}
+            >
+              <Text style={styles.retryButtonText}>Tentar novamente</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            ref={listaRef}
+            data={mensagensFiltradas}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMensagem}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                Nenhuma mensagem ainda. Diga oi para {nomeParceiro}!
+              </Text>
+            }
+            onContentSizeChange={() =>
+              listaRef.current?.scrollToEnd({ animated: false })
+            }
+          />
+        )}
 
         {/* Campo inferior de envio */}
         <View style={styles.inputBar}>
@@ -244,19 +292,28 @@ export default function ChatScreen() {
             placeholderTextColor="#CCCCCC"
             style={styles.textInput}
             multiline
+            editable={!enviando}
           />
 
           <TouchableOpacity
-            style={styles.sendButton}
+            style={[
+              styles.sendButton,
+              (!textoInput.trim() || enviando) && styles.sendButtonDisabled,
+            ]}
             activeOpacity={0.8}
             onPress={enviarMensagem}
+            disabled={!textoInput.trim() || enviando}
           >
-            <Ionicons
-              name="paper-plane-outline"
-              size={22}
-              color="#FFFFFF"
-              style={styles.sendIcon}
-            />
+            {enviando ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons
+                name="paper-plane-outline"
+                size={22}
+                color="#FFFFFF"
+                style={styles.sendIcon}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -292,16 +349,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: "#2C2C2C",
   },
+  avatarPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
   headerName: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
-  },
-  headerStatus: {
-    color: "#4CAF50",
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: 1,
   },
   searchButton: {
     padding: 8,
@@ -324,11 +379,42 @@ const styles = StyleSheet.create({
   chatBody: {
     flex: 1,
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    color: "#E0E0E0",
+    fontSize: 15,
+    textAlign: "center",
+    marginTop: 14,
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  retryButton: {
+    backgroundColor: "#E91E63",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 22,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
+  },
   messagesList: {
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 16,
     gap: 18,
+  },
+  emptyText: {
+    color: "#9E9E9E",
+    textAlign: "center",
+    marginTop: 48,
+    fontSize: 14,
   },
   receivedRow: {
     flexDirection: "row",
@@ -387,6 +473,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#E91E63",
     alignItems: "center",
     justifyContent: "center",
+  },
+  sendButtonDisabled: {
+    opacity: 0.55,
   },
   sendIcon: {
     marginLeft: -2,
